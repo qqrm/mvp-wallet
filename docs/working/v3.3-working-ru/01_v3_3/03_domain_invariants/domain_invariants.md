@@ -19,4 +19,4 @@
 4) Все изменения денег — внутри одной транзакции БД.
 5) Трассировка: correlation_id / request_id обязателен.
 
-См. первоисточник: [SOURCE 1 §p008](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p008) и [SOURCE 1 §p035](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p035)–[SOURCE 1 §p036](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p036).
+См. первоисточник: [SOURCE 1 §p008](../../../../blueprint/v3.3/appendix/sources/source_materials.md) и [SOURCE 1 §p035](../../../../blueprint/v3.3/appendix/sources/source_materials.md)–[SOURCE 1 §p036](../../../../blueprint/v3.3/appendix/sources/source_materials.md).

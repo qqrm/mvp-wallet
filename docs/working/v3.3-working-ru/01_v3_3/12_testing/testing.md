@@ -22,4 +22,4 @@ Property-based:
 - idempotency conflict no side effects
 - reverse is compensating
 
-См. первоисточник: [SOURCE 1 §p017](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p017)–[SOURCE 1 §p018](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p018).
+См. первоисточник: [SOURCE 1 §p017](../../../../blueprint/v3.3/appendix/sources/source_materials.md)–[SOURCE 1 §p018](../../../../blueprint/v3.3/appendix/sources/source_materials.md).

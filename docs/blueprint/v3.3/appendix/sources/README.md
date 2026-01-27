@@ -1,11 +1,7 @@
-# Sources (integrated, cleaned)
+# Sources (reference)
 
-This folder contains integrated source texts used to build the v3.3 spec.
-Each source is provided as a single cleaned Markdown file with stable anchors (`#pNNN`) for traceability.
+This folder contains a cleaned, consolidated dump of historical input materials that were used while compiling the v3.3 documentation set.
 
-## Source files
+- Primary file: `source_materials.md`
 
-- [SOURCE 1 — Blueprint v3.1](./source_1_blueprint_v3_1.md)
-- [SOURCE 2 — Blueprint v3.2](./source_2_blueprint_v3_2.md)
-- [SOURCE 3 — Blueprint v3.2 Upgrade](./source_3_blueprint_v3_2_upgrade.md)
-- [SOURCE 4 — Comparative Analysis Backlog](./source_4_comparative_analysis_backlog.md)
+These sources are **not** the project documentation. Treat the v3.3 docs under `docs/working/` and `docs/blueprint/v3.3/` as the single source of truth.

@@ -16,4 +16,4 @@
 - Merchant checkout интеграция
 - Автоматизация чарджбеков/диспутов, кредит/страхование
 
-Первичный источник: см. [SOURCE 1 §p001](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p001) и [SOURCE 1 §p002](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p002).
+Первичный источник: см. [SOURCE 1 §p001](../../../../blueprint/v3.3/appendix/sources/source_materials.md) и [SOURCE 1 §p002](../../../../blueprint/v3.3/appendix/sources/source_materials.md).

@@ -20,4 +20,4 @@ CLOSED запрещает новые дебеты/кредиты, кроме а�
 - SYSTEM_FX_POOL_[CCY]
 - SYSTEM_FX_FEE_[CCY]
 
-См. первоисточник: [SOURCE 1 §p008](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p008)–[SOURCE 1 §p009](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p009) и [SOURCE 1 §p036](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p036).
+См. первоисточник: [SOURCE 1 §p008](../../../../blueprint/v3.3/appendix/sources/source_materials.md)–[SOURCE 1 §p009](../../../../blueprint/v3.3/appendix/sources/source_materials.md) и [SOURCE 1 §p036](../../../../blueprint/v3.3/appendix/sources/source_materials.md).

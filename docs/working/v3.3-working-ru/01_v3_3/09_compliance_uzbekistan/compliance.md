@@ -16,4 +16,4 @@ MVP не включает KYC и внешние платёжные рельсы,
 - Postgres backups + PITR; restore drill; migrations gated in CI.
 - Runbook по расследованию расхождений баланса через tx_id receipts.
 
-См. первоисточник: [SOURCE 1 §p028](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p028)–[SOURCE 1 §p029](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p029) и [SOURCE 1 §p032](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p032).
+См. первоисточник: [SOURCE 1 §p028](../../../../blueprint/v3.3/appendix/sources/source_materials.md)–[SOURCE 1 §p029](../../../../blueprint/v3.3/appendix/sources/source_materials.md) и [SOURCE 1 §p032](../../../../blueprint/v3.3/appendix/sources/source_materials.md).

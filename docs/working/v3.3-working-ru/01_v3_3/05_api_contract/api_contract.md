@@ -33,4 +33,4 @@ User Wallet API:
 - Recipient addressing: recipient может задаваться `phone_number` или `user_id` (в дополнение к `account_id`), с резолвом в `account_id` на момент операции.
 - Admin search filters: `user_id`, `account_id`, `tx_id`, `currency`, `time_range`, до 100 результатов; пагинация может быть на фронте (без server-side cursor в MVP).
 
-См. первоисточник: [SOURCE 1 §p012](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p012)–[SOURCE 1 §p015](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p015) и [SOURCE 1 §p033](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p033)–[SOURCE 1 §p037](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p037).
+См. первоисточник: [SOURCE 1 §p012](../../../../blueprint/v3.3/appendix/sources/source_materials.md)–[SOURCE 1 §p015](../../../../blueprint/v3.3/appendix/sources/source_materials.md) и [SOURCE 1 §p033](../../../../blueprint/v3.3/appendix/sources/source_materials.md)–[SOURCE 1 §p037](../../../../blueprint/v3.3/appendix/sources/source_materials.md).

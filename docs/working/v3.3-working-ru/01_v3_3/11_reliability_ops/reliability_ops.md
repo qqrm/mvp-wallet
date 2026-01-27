@@ -16,4 +16,4 @@ Load/perf (минимум):
 - FX burst
 - lock contention test
 
-См. первоисточник: [SOURCE 1 §p011](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p011) и [SOURCE 1 §p039](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p039).
+См. первоисточник: [SOURCE 1 §p011](../../../../blueprint/v3.3/appendix/sources/source_materials.md) и [SOURCE 1 §p039](../../../../blueprint/v3.3/appendix/sources/source_materials.md).
