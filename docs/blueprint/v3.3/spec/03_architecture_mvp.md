@@ -19,3 +19,6 @@
 3.4 Time
 - All timestamps are stored in UTC.
 - API may present ISO-8601 timestamps.
+
+3.5 Scope
+- MVP is single-tenant. Multi-tenant concepts (tenant_id, tenant isolation) are out of scope.

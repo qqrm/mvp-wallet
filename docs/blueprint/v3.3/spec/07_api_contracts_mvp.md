@@ -2,7 +2,8 @@
 
 7.1 General
 - All endpoints must be defined in OpenAPI (schemas + examples + errors).
-- All money-moving POST endpoints require header: Idempotency-Key.
+- Idempotency-Key is REQUIRED for POST endpoints that commit state changes (money postings + admin ops).
+  - Exception: POST /v1/fx/quote is intentionally NOT idempotent (fresh quote per call).
 
 7.2 Error Envelope (mandatory, stable)
 All errors MUST be returned as:
@@ -20,8 +21,9 @@ All errors MUST be returned as:
 USER:
 - GET  /v1/profile
 - GET  /v1/accounts
+- GET  /v1/accounts/{account_id}
 - GET  /v1/accounts/{account_id}/balance
-- GET  /v1/accounts/{account_id}/transactions?cursor=&limit=
+- GET  /v1/accounts/{account_id}/transactions?before=&limit=   (default limit=100; sorted desc by created_at)
 - GET  /v1/transactions/{tx_id}
 - POST /v1/transfers
 - POST /v1/fx/quote

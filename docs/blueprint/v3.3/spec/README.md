@@ -20,3 +20,4 @@ This folder contains the normalized, implementable MVP spec, split by top-level 
 - [13. OPERATIONS (MVP)](./13_operations_mvp.md)
 - [14. TESTING REQUIREMENTS (MVP)](./14_testing_requirements_mvp.md)
 - [15. MVP BACKEND DEFINITION OF DONE (DoD)](./15_mvp_backend_definition_of_done_dod.md)
+- [16. PRODUCT DECISION RECORD (PDR)](./16_pdr_decisions.md)
