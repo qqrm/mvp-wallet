@@ -22,7 +22,7 @@ use wallet_infra::{
 };
 
 pub fn routes() -> Router<AppState> {
-    Router::new()
+    let mut router = Router::new()
         .route("/health", get(health))
         .route("/v1/currencies", get(currencies_list))
         .route("/v1/transactions/{tx_id}", get(tx_receipt))
@@ -41,8 +41,6 @@ pub fn routes() -> Router<AppState> {
         .route("/v1/wallet/{user_id}/balances", get(wallet_balances))
         .route("/v1/wallet/{user_id}/txs", get(wallet_txs))
         .route("/v1/wallet/{user_id}/transfer", post(wallet_transfer))
-        .route("/v1/dev/users", get(dev_users))
-        .route("/v1/dev/users/{user_id}/accounts", get(dev_user_accounts))
         // Admin API
         .route("/v1/admin/users", post(admin_create_user))
         .route(
@@ -66,7 +64,19 @@ pub fn routes() -> Router<AppState> {
             "/v1/admin/users/{user_id}/balances",
             get(admin_user_balances),
         )
-        .route("/v1/admin/users/{user_id}/txs", get(admin_user_txs))
+        .route("/v1/admin/users/{user_id}/txs", get(admin_user_txs));
+
+    if dev_routes_enabled() {
+        router = router
+            .route("/v1/dev/users", get(dev_users))
+            .route("/v1/dev/users/{user_id}/accounts", get(dev_user_accounts));
+    }
+
+    router
+}
+
+fn dev_routes_enabled() -> bool {
+    matches!(std::env::var("WALLET_DEV_NO_AUTH"), Ok(v) if v == "1")
 }
 
 #[utoipa::path(
