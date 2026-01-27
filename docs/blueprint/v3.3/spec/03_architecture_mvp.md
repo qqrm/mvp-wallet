@@ -2,6 +2,7 @@
 
 3.1 Shape
 - Contract-first monolith service (Rust)
+- Single-tenant in MVP (no tenant_id in domain/API). Multi-tenant is out of scope.
 - PostgreSQL in production (required)
 - SQLite allowed only for local dev/tests (never production)
 
@@ -19,6 +20,3 @@
 3.4 Time
 - All timestamps are stored in UTC.
 - API may present ISO-8601 timestamps.
-
-3.5 Scope
-- MVP is single-tenant. Multi-tenant concepts (tenant_id, tenant isolation) are out of scope.

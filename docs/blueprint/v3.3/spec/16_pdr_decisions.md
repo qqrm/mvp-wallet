@@ -1,40 +1,56 @@
-# 16. PRODUCT DECISION RECORD (PDR)
+# 16. PDR / Decisions (MVP)
 
-This file records decisions that affect implementation and future discussions.
-The spec is the source of truth; PDR captures *why*.
+This file records decisions made during spec normalization to keep the spec unambiguous.
 
-PDR-001 (2026-01-27): Canonical success status is POSTED
-- Decision: Use POSTED as the final success state. COMPLETED is not used in MVP.
-- Rationale: Align terminology across ledger/receipts and avoid duplicate “success” states.
+## Decided
 
-PDR-002 (2026-01-27): Add account details endpoint
-- Decision: Add GET /v1/accounts/{account_id} for account details (in addition to GET /v1/accounts list).
-- Rationale: Details view is needed; list endpoint can remain lightweight.
+1) Source of truth
+- The Markdown spec in this repo is the only source of truth.
+- External PDFs are reference-only for cross-checking.
 
-PDR-003 (2026-01-27): Path parameter naming
-- Decision: Use {account_id} (not {id}) in API paths in the spec.
-- Rationale: Improves clarity and consistency in OpenAPI/SDKs.
+2) User identity (MVP)
+- Primary user identifier in MVP is phone_number (string).
+- External SSO/IdP integration is out of scope.
 
-PDR-004 (2026-01-27): FX quote is non-idempotent
-- Decision: POST /v1/fx/quote is NOT idempotent; each call produces a fresh quote_id.
-- Rationale: Quotes must reflect current rates/fees; replay semantics belong to execute (by re-using quote_id).
+3) Account uniqueness and create dedupe (MVP)
+- Each user has 1 account per currency.
+- Uniqueness key: (phone_number, currency).
+- Admin/user create of an account MUST be deduplicated: repeated create returns the existing account.
 
-PDR-005 (2026-01-27): Idempotency required for admin POST endpoints
-- Decision: All admin POST endpoints require Idempotency-Key.
-- Rationale: Prevent duplicate postings and accidental repeated admin operations.
+4) Transaction status terminology
+- Successful final state is POSTED.
+- COMPLETED is not used.
 
-PDR-006 (2026-01-27): Account create dedupe rule
-- Decision: In MVP, (phone_number, currency) is unique; creating an account for an existing (phone_number, currency) returns the existing account.
-- Rationale: Prevent duplicate accounts for the same user/currency while keeping retries safe.
+5) Transaction history paging
+- Default `limit=100`.
+- Paging is time-based into the past via `before=<timestamp>` (no cursor in MVP).
 
-PDR-007 (2026-01-27): Single-tenant MVP
-- Decision: MVP is single-tenant; tenant_id/multi-tenant isolation is out of scope.
-- Rationale: Avoid premature complexity; revisit when multi-tenant becomes a real requirement.
+6) FX quote vs execute
+- `POST /v1/fx/quote` returns a firm quote snapshot with TTL=5 minutes (expires_at).
+- Quote requests are NOT idempotent: each call returns a fresh quote.
+- Execution uses `POST /v1/fx/execute` referencing `quote_id` (idempotency applies to execute).
 
-PDR-008 (2026-01-27): JWT provider out of scope (no Uzum SSO in MVP)
-- Decision: JWT is required, but issuer/SSO integration is out of scope. Minimum claim is sub=phone_number (or user_id that equals phone_number in MVP).
-- Rationale: Allows MVP to ship with a placeholder identity provider while keeping the contract explicit.
+7) Idempotency requirements
+- Idempotency-Key is REQUIRED for all admin POST endpoints.
+- Idempotency-Key is REQUIRED for money-moving POST endpoints, excluding `POST /v1/fx/quote`.
 
-PDR-009 (2026-01-27): Transaction history default limit and time-based paging
-- Decision: GET /v1/accounts/{account_id}/transactions returns the latest 100 transactions by default; older history is loaded using a time-based parameter (before=timestamp) with limit.
-- Rationale: Simple client UX for “recent activity” while allowing incremental backfill without a server cursor in MVP.
+8) Tenant model
+- MVP is single-tenant; multi-tenant is out of scope.
+
+9) FX rounding and precision (MVP)
+- No floating point. FX rates stored as fixed-point: rate_scaled / rate_scale (rate_scale=1e9).
+- amount_to_minor is computed with floor() (rounding in favor of platform; deterministic).
+
+10) FX fee policy (MVP)
+- Fee is configurable via admin (fee_bps, default 100 bps = 1%).
+- fee_minor is computed with ceil() (platform-favoring; deterministic).
+
+11) Stable error codes
+- error.code is part of the public API contract and must be stable.
+
+12) Account details visibility
+- /v1/accounts/{account_id} returns different field sets for USER vs ADMIN (see API contracts).
+
+## Open questions (not decided)
+
+- (none)
