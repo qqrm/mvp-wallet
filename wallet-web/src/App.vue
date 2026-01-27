@@ -1,9 +1,82 @@
 <script setup lang="ts">
-import { ref } from "vue"
-import AdminConsole from "./components/AdminConsole.vue"
-import UserConsole from "./components/UserConsole.vue"
+import { computed, onMounted, ref } from "vue"
+import { getBalances, getTxs, postTopup, postTransfer, type BalanceItem, type TxItem } from "./api/client"
 
-const tab = ref<"admin" | "user">("admin")
+const userId = ref("42")
+
+const balances = ref<BalanceItem[]>([])
+const txs = ref<TxItem[]>([])
+const loading = ref(false)
+const errorText = ref<string | null>(null)
+
+const topupCurrency = ref("UZS")
+const topupAmount = ref(100000)
+
+const transferTo = ref("99")
+const transferCurrency = ref("UZS")
+const transferAmount = ref(25000)
+
+const totalAvailable = computed(() => {
+  return balances.value.reduce((acc, b) => acc + (b.available_minor || 0), 0)
+})
+
+function money(n: number): string {
+  // MVP: просто integer "minor"
+  return n.toLocaleString("en-US")
+}
+
+async function refresh() {
+  loading.value = true
+  errorText.value = null
+  try {
+    const b = await getBalances(userId.value)
+    balances.value = b.balances
+
+    const t = await getTxs(userId.value, 50)
+    txs.value = t.txs
+  } catch (e: any) {
+    errorText.value = e?.message ?? String(e)
+  } finally {
+    loading.value = false
+  }
+}
+
+function idem(prefix: string) {
+  // простой ключ: prefix-user-ts
+  return `${prefix}-${userId.value}-${Date.now()}`
+}
+
+async function doTopup() {
+  loading.value = true
+  errorText.value = null
+  try {
+    await postTopup(userId.value, topupCurrency.value, Number(topupAmount.value), idem("topup"))
+    await refresh()
+  } catch (e: any) {
+    errorText.value = e?.message ?? String(e)
+    loading.value = false
+  }
+}
+
+async function doTransfer() {
+  loading.value = true
+  errorText.value = null
+  try {
+    await postTransfer(
+      userId.value,
+      transferTo.value,
+      transferCurrency.value,
+      Number(transferAmount.value),
+      idem("xfer"),
+    )
+    await refresh()
+  } catch (e: any) {
+    errorText.value = e?.message ?? String(e)
+    loading.value = false
+  }
+}
+
+onMounted(refresh)
 </script>
 
 <template>
@@ -14,177 +87,95 @@ const tab = ref<"admin" | "user">("admin")
         <div class="title">Uzum Wallet MVP</div>
       </div>
 
-      <div class="tabs">
-        <button class="tab" :class="{ active: tab === 'admin' }" @click="tab = 'admin'">Admin</button>
-        <button class="tab" :class="{ active: tab === 'user' }" @click="tab = 'user'">User</button>
+      <div class="userbox">
+        <div class="label">User ID</div>
+        <input class="input" v-model="userId" />
+        <button class="btn" :disabled="loading" @click="refresh">Refresh</button>
       </div>
     </header>
 
     <main class="grid">
-      <AdminConsole v-if="tab === 'admin'" class="span2" />
-      <UserConsole v-else class="span2" />
+      <section class="card">
+        <div class="card-title">Balances</div>
+
+        <div class="muted" v-if="balances.length === 0">No balances yet</div>
+
+        <div class="balances" v-else>
+          <div class="balance" v-for="b in balances" :key="b.currency">
+            <div class="bal-cur">{{ b.currency }}</div>
+            <div class="bal-num">{{ money(b.available_minor) }}</div>
+            <div class="bal-sub">hold: {{ money(b.hold_minor) }}</div>
+          </div>
+        </div>
+
+        <div class="total">
+          <div class="muted">Total available (sum, minor):</div>
+          <div class="total-num">{{ money(totalAvailable) }}</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-title">Actions</div>
+
+        <div class="row">
+          <div class="muted">Top up</div>
+        </div>
+
+        <div class="row">
+          <input class="input" v-model="topupCurrency" placeholder="Currency (UZS)" />
+          <input class="input" type="number" v-model="topupAmount" placeholder="Amount minor" />
+          <button class="btn-primary" :disabled="loading" @click="doTopup">Top up</button>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="row">
+          <div class="muted">Transfer</div>
+        </div>
+
+        <div class="row">
+          <input class="input" v-model="transferTo" placeholder="To user id" />
+          <input class="input" v-model="transferCurrency" placeholder="Currency (UZS)" />
+          <input class="input" type="number" v-model="transferAmount" placeholder="Amount minor" />
+          <button class="btn-primary" :disabled="loading" @click="doTransfer">Send</button>
+        </div>
+
+        <div class="hint muted">
+          Idempotency-Key генерится автоматически (topup- / xfer-).
+        </div>
+      </section>
+
+      <section class="card span2">
+        <div class="card-title">Transactions</div>
+
+        <div v-if="errorText" class="error">
+          {{ errorText }}
+        </div>
+
+        <div v-if="txs.length === 0" class="muted">
+          No transactions yet
+        </div>
+
+        <div class="txs" v-else>
+          <div class="tx" v-for="t in txs" :key="t.tx_id">
+            <div class="tx-left">
+              <div class="tx-desc">{{ t.description }}</div>
+              <div class="tx-meta">
+                <span class="pill">{{ t.tx_type }}</span>
+                <span class="pill">{{ t.state }}</span>
+                <span class="muted">{{ t.created_at }}</span>
+              </div>
+            </div>
+
+            <div class="tx-right">
+              <div class="tx-amt" :class="{ neg: t.amount_minor < 0 }">
+                {{ t.amount_minor < 0 ? "-" : "+" }}{{ money(Math.abs(t.amount_minor)) }} {{ t.currency }}
+              </div>
+              <div class="muted tx-id">{{ t.tx_id }}</div>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
   </div>
 </template>
-
-<style>
-:root {
-  --bg: #0b0f1a;
-  --card: #0f1628;
-  --text: #e6ecff;
-  --muted: #9aa6c7;
-  --border: rgba(255, 255, 255, 0.08);
-  --accent: #6aa4ff;
-  --accent2: #71ffd8;
-  --danger: #ff6a6a;
-}
-
-* { box-sizing: border-box; }
-html, body { height: 100%; }
-body {
-  margin: 0;
-  background: radial-gradient(1200px 800px at 15% 10%, rgba(106, 164, 255, 0.18), transparent 60%),
-              radial-gradient(1200px 800px at 80% 20%, rgba(113, 255, 216, 0.10), transparent 55%),
-              var(--bg);
-  color: var(--text);
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-}
-
-.page { max-width: 1200px; margin: 0 auto; padding: 16px 16px 40px; }
-
-.header {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px;
-  border: 1px solid var(--border);
-  background: rgba(15, 22, 40, 0.7);
-  border-radius: 16px;
-  backdrop-filter: blur(12px);
-}
-
-.brand { display: flex; gap: 10px; align-items: center; }
-.logo-dot {
-  width: 12px; height: 12px; border-radius: 999px;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  box-shadow: 0 0 0 4px rgba(106, 164, 255, 0.12);
-}
-.title { font-weight: 700; letter-spacing: 0.2px; }
-
-.tabs { display: flex; gap: 8px; }
-.tab {
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text);
-  padding: 8px 12px;
-  border-radius: 12px;
-  cursor: pointer;
-}
-.tab.active {
-  border-color: rgba(106, 164, 255, 0.5);
-  background: rgba(106, 164, 255, 0.10);
-}
-
-.grid {
-  margin-top: 16px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
-@media (max-width: 980px) {
-  .grid { grid-template-columns: 1fr; }
-  .span2 { grid-column: auto; }
-}
-
-.card {
-  border: 1px solid var(--border);
-  background: rgba(15, 22, 40, 0.75);
-  border-radius: 16px;
-  padding: 14px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
-}
-
-.span2 { grid-column: 1 / -1; }
-
-.card-title { font-weight: 700; margin-bottom: 12px; }
-.muted { color: var(--muted); }
-.label { color: var(--muted); min-width: 88px; }
-
-.row { display: flex; gap: 10px; align-items: center; margin: 8px 0; flex-wrap: wrap; }
-.input {
-  background: rgba(255,255,255,0.03);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 10px 12px;
-  outline: none;
-  min-width: 160px;
-}
-.input:focus { border-color: rgba(106, 164, 255, 0.55); }
-
-.btn, .btn-primary {
-  border-radius: 12px;
-  padding: 10px 12px;
-  cursor: pointer;
-  border: 1px solid var(--border);
-  background: rgba(255,255,255,0.03);
-  color: var(--text);
-}
-.btn-primary {
-  border-color: rgba(106, 164, 255, 0.55);
-  background: rgba(106, 164, 255, 0.16);
-}
-.btn:disabled, .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-
-.divider { height: 1px; background: var(--border); margin: 12px 0; }
-
-.error {
-  margin-top: 10px;
-  border: 1px solid rgba(255, 106, 106, 0.35);
-  background: rgba(255, 106, 106, 0.12);
-  padding: 10px 12px;
-  border-radius: 12px;
-  color: #ffd2d2;
-}
-
-.balances { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-@media (max-width: 980px) { .balances { grid-template-columns: 1fr; } }
-.balance {
-  border: 1px solid var(--border);
-  background: rgba(255,255,255,0.03);
-  padding: 12px;
-  border-radius: 14px;
-}
-.bal-cur { font-weight: 700; }
-.bal-num { font-size: 20px; margin-top: 6px; }
-.bal-sub { color: var(--muted); margin-top: 2px; font-size: 13px; }
-
-.total { margin-top: 10px; display: flex; justify-content: space-between; align-items: baseline; }
-.total-num { font-size: 20px; font-weight: 700; }
-
-.txs { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
-.tx {
-  border: 1px solid var(--border);
-  background: rgba(255,255,255,0.03);
-  border-radius: 14px;
-  padding: 12px;
-  display: flex;
-  gap: 12px;
-  justify-content: space-between;
-}
-.tx-desc { font-weight: 600; }
-.tx-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; align-items: center; }
-.pill {
-  font-size: 12px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 3px 8px;
-  color: var(--muted);
-}
-.tx-right { text-align: right; min-width: 200px; }
-.tx-amt { font-weight: 700; font-size: 18px; }
-.tx-amt.neg { color: #ff9090; }
-.tx-id { font-size: 12px; margin-top: 2px; }
-.hint { margin-top: 8px; font-size: 13px; }
-</style>

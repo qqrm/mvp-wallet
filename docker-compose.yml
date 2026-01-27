@@ -4,18 +4,22 @@ services:
       context: .
       dockerfile: Dockerfile.api
     environment:
-      ADMIN_TOKEN: "${ADMIN_TOKEN:-admin-dev-token}"
-      USER_TOKEN_SECRET: "${USER_TOKEN_SECRET:-dev-secret}"
-      BIND_ADDR: "${BIND_ADDR:-0.0.0.0:3000}"
-      DB_FILE: "${DB_FILE:-/data/wallet.db}"
-      RUST_LOG: "${RUST_LOG:-info}"
+      # пример: подставим dev токены
+      ADMIN_TOKEN: "admin-dev-token"
+      USER_TOKEN_SECRET: "dev-secret"
+      # DATABASE_URL: "sqlite:/data/wallet.db"  # если sqlite
+      # DATABASE_URL: "postgres://postgres:postgres@db:5432/wallet"  # если postgres
     ports:
       - "3000:3000"
     volumes:
-      - ./wallet-backend:/repo/wallet-backend
+      - ./:/app
       - cargo-cache:/usr/local/cargo/registry
-      - target-cache:/repo/wallet-backend/target
+      - target-cache:/app/target
+      # если sqlite в файле:
       - api-data:/data
+    depends_on:
+      # - db
+      []
 
   web:
     build:
@@ -23,17 +27,25 @@ services:
       dockerfile: Dockerfile.web
     ports:
       - "5173:5173"
-    environment:
-      # keep empty for dev proxy; override if you want direct calls
-      VITE_API_BASE: "${VITE_API_BASE:-}"
     volumes:
-      - ./wallet-web:/repo/wallet-web
-      - node-modules:/repo/wallet-web/node_modules
-    depends_on:
-      - api
+      - ./frontend:/app
+      - node-modules:/app/node_modules
+    environment:
+      VITE_API_URL: "http://localhost:3000"
+  # db:
+  #   image: postgres:16
+  #   environment:
+  #     POSTGRES_DB: wallet
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: postgres
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - pg-data:/var/lib/postgresql/data
 
 volumes:
   cargo-cache: {}
   target-cache: {}
   node-modules: {}
   api-data: {}
+  # pg-data: {}
