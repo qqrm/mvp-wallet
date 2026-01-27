@@ -8,18 +8,16 @@ async fn main() -> anyhow::Result<()> {
         .with_env_filter(EnvFilter::from_default_env().add_directive("info".parse()?))
         .init();
 
-    let db_file = std::env::var("DB_FILE").unwrap_or_else(|_| "wallet.db".to_string());
-    let bind_addr = std::env::var("BIND_ADDR").unwrap_or_else(|_| "127.0.0.1:3000".to_string());
-
-    let pool = infra_db::create_pool(&db_file).await?;
+    let pool = infra_db::create_pool("wallet.db").await?;
     infra_db::migrate(&pool).await?;
     infra_db::ensure_system_accounts(&pool).await?;
 
     let app = wallet_api::app::build_app(pool);
 
-    tracing::info!("listening on http://{bind_addr}");
+    let addr = "127.0.0.1:3000";
+    tracing::info!("listening on http://{addr}");
 
-    let listener = tokio::net::TcpListener::bind(&bind_addr).await?;
+    let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
     Ok(())
 }
