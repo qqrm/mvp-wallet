@@ -1,0 +1,15 @@
+[package]
+name = "wallet-infra"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+wallet-domain = { path = "../wallet-domain" }
+wallet-app = { path = "../wallet-app" }
+
+sqlx.workspace = true
+chrono.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+sha2.workspace = true
+anyhow.workspace = true

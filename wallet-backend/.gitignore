@@ -1,0 +1,5 @@
+/target
+**.zip
+wallet.db
+wallet.db-wal
+wallet.db-shm

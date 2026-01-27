@@ -1,0 +1,11 @@
+[package]
+name = "wallet-app"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+wallet-domain = { path = "../wallet-domain" }
+serde.workspace = true
+utoipa.workspace = true
+thiserror.workspace = true
+sqlx = { version = "0.8", default-features = false }

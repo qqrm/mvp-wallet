@@ -1,0 +1,51 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment:
+      # пример: подставим dev токены
+      ADMIN_TOKEN: "admin-dev-token"
+      USER_TOKEN_SECRET: "dev-secret"
+      # DATABASE_URL: "sqlite:/data/wallet.db"  # если sqlite
+      # DATABASE_URL: "postgres://postgres:postgres@db:5432/wallet"  # если postgres
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./:/app
+      - cargo-cache:/usr/local/cargo/registry
+      - target-cache:/app/target
+      # если sqlite в файле:
+      - api-data:/data
+    depends_on:
+      # - db
+      []
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - node-modules:/app/node_modules
+    environment:
+      VITE_API_URL: "http://localhost:3000"
+  # db:
+  #   image: postgres:16
+  #   environment:
+  #     POSTGRES_DB: wallet
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: postgres
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - pg-data:/var/lib/postgresql/data
+
+volumes:
+  cargo-cache: {}
+  target-cache: {}
+  node-modules: {}
+  api-data: {}
+  # pg-data: {}
