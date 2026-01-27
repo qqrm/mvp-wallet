@@ -44,14 +44,17 @@ function Remove-IfExists {
 }
 
 function Get-RelativePath {
-  param(
-    [Parameter(Mandatory=$true)][string]$Root,
-    [Parameter(Mandatory=$true)][string]$FullPath
-  )
+  param([string]$Root, [string]$FullPath)
   $rel = [System.IO.Path]::GetRelativePath($Root, $FullPath)
   if ([string]::IsNullOrWhiteSpace($rel) -or $rel -eq '.') { return '' }
-  return ($rel -replace '/', '\')
+
+  # было (плохо для zip):
+  # return ($rel -replace '/', '\')
+
+  # должно быть (zip standard, кроссплатформа):
+  return ($rel -replace '\\', '/')
 }
+
 
 function Test-HardExclude {
   param([string]$RelPath)
