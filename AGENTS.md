@@ -1,50 +1,55 @@
-# AGENTS.md — Repo Root
-
-This file defines how the agent must operate for the entire repo.
-It is not a product spec.
+This file defines how an agent must work in this repository.
 
 ## Operating rules
-- Keep PRs small and incremental; no architecture rewrites unless explicitly asked.
+- Keep PRs small and reviewable. No architecture rewrites unless explicitly asked.
 - Do not add TODOs or commented-out code.
-- If any required gate fails, fix it before returning.
+- If any required gate fails, fix it and re-run the failed gate(s) until green.
+- Prefer deterministic, reproducible commands. Do not rely on local IDE state.
 
-## Mandatory quality gates (must run locally and in CI)
+## Local quality gates (run locally before opening PR)
+Run commands from the repo root.
 
-### Rust (workspace in `wallet-backend/`, run from repo root)
-1. Format check:
-   - `cargo fmt --manifest-path wallet-backend/Cargo.toml --all -- --check`
-2. Lints:
-   - `cargo clippy --manifest-path wallet-backend/Cargo.toml --all-targets --all-features -- -D warnings`
-3. Tests:
-   - `cargo test --manifest-path wallet-backend/Cargo.toml`
-4. Build:
-   - `cargo build --manifest-path wallet-backend/Cargo.toml -p wallet-api`
+### Rust (workspace: `wallet-backend/`)
+Use direct `cargo` commands (no `just`).
 
-### Vue (run from repo root)
-1. Install (lockfile required):
-   - `npm --prefix wallet-web ci`
-2. Typecheck:
-   - `npm --prefix wallet-web run typecheck`
-3. Build:
-   - `npm --prefix wallet-web run build`
+1) Format check (must be clean):
+- `cargo fmt --manifest-path wallet-backend/Cargo.toml --all -- --check`
 
-## One-command gates (repo-level Justfile)
-Use the root `Justfile` commands:
-- `just lint`
-- `just test`
-- `just build`
-- `just ci`
+If it fails, apply formatting and re-check:
+- `cargo fmt --manifest-path wallet-backend/Cargo.toml --all`
+- then re-run the `--check` command above.
 
-Notes:
-- Web lint = typecheck only (`npm --prefix wallet-web run typecheck`).
-- Web test = typecheck + build (`npm --prefix wallet-web run typecheck` and `npm --prefix wallet-web run build`).
+2) Lints (no warnings):
+- `cargo clippy --manifest-path wallet-backend/Cargo.toml --all-targets --all-features -- -D warnings`
 
-## CI enforcement
-CI must run the same gates as above. If CI is configured, it must run `just ci`
-(or the explicit underlying commands) on both Windows and Ubuntu via a matrix.
+3) Tests:
+- `cargo test --manifest-path wallet-backend/Cargo.toml`
+
+4) Build (at minimum the API crate):
+- `cargo build --manifest-path wallet-backend/Cargo.toml -p wallet-api`
+
+Optional (if you want faster feedback before the full suite):
+- `cargo check --manifest-path wallet-backend/Cargo.toml --all-targets --all-features`
+
+### Vue (project: `wallet-web/`)
+Use direct `npm` commands (no `just`).
+
+1) Install (must use lockfile):
+- `npm --prefix wallet-web ci`
+
+If it fails with “package.json and package-lock.json are not in sync”:
+- run `npm --prefix wallet-web install`
+- commit the updated `wallet-web/package-lock.json`
+- then re-run `npm --prefix wallet-web ci`
+
+2) Typecheck:
+- `npm --prefix wallet-web run typecheck`
+
+3) Build:
+- `npm --prefix wallet-web run build`
 
 ## Required PR description format
-Every PR description must include:
-- Commands run + results (exact commands).
-- Files changed.
+Include:
+- Exact commands run (copy/paste) + result summary.
+- Files changed (high level).
 - Any follow-ups / known limitations.
