@@ -26,10 +26,11 @@ web-build:
 # In this repo there are no "test"/"lint" scripts for the web yet.
 # Minimal "test/lint" = typecheck+build (vue-tsc + vite build).
 web-test:
+  npm --prefix {{WEB_DIR}} run typecheck
   just web-build
 
 web-lint:
-  just web-build
+  npm --prefix {{WEB_DIR}} run typecheck
 
 web-dev:
   npm --prefix {{WEB_DIR}} run dev
@@ -54,7 +55,7 @@ backend-test:
   cargo test --manifest-path {{BACKEND_DIR}}/Cargo.toml
 
 backend-fmt-check:
-  cargo fmt --manifest-path {{BACKEND_DIR}}/Cargo.toml --check
+  cargo fmt --manifest-path {{BACKEND_DIR}}/Cargo.toml --all -- --check
 
 backend-clippy:
   cargo clippy --manifest-path {{BACKEND_DIR}}/Cargo.toml --all-targets --all-features -- -D warnings

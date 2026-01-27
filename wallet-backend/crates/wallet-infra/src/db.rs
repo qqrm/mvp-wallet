@@ -1,13 +1,12 @@
 use chrono::Utc;
 use sqlx::{
-    sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous},
     SqlitePool,
+    sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous},
 };
 use std::{path::PathBuf, time::Duration};
 
 use wallet_app::{AppError, AppResult};
 use wallet_domain::*;
-
 
 /// Creates SQLite pool for file `db_file` placed next to Cargo.toml.
 ///
@@ -17,13 +16,13 @@ use wallet_domain::*;
 /// - We enable WAL + busy_timeout to reduce "database is locked" during concurrent writes.
 pub async fn create_pool(db_file: &str) -> anyhow::Result<SqlitePool> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-let workspace_root = manifest_dir
-    .parent()
-    .and_then(|p| p.parent())
-    .map(|p| p.to_path_buf())
-    .unwrap_or_else(|| manifest_dir.clone());
+    let workspace_root = manifest_dir
+        .parent()
+        .and_then(|p| p.parent())
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| manifest_dir.clone());
 
-let abs_path: PathBuf = workspace_root.join(db_file);
+    let abs_path: PathBuf = workspace_root.join(db_file);
 
     let opts = SqliteConnectOptions::new()
         .filename(&abs_path)
@@ -109,13 +108,11 @@ pub async fn list_currencies(pool: &SqlitePool) -> AppResult<Vec<(String, i64)>>
 }
 
 pub async fn is_currency_supported(pool: &SqlitePool, currency: &Currency) -> AppResult<bool> {
-    let exists = sqlx::query_scalar::<_, i64>(
-        "SELECT 1 FROM currencies WHERE code = ?1 LIMIT 1",
-    )
-    .bind(currency.as_str())
-    .fetch_optional(pool)
-    .await?
-    .is_some();
+    let exists = sqlx::query_scalar::<_, i64>("SELECT 1 FROM currencies WHERE code = ?1 LIMIT 1")
+        .bind(currency.as_str())
+        .fetch_optional(pool)
+        .await?
+        .is_some();
 
     Ok(exists)
 }
@@ -256,7 +253,11 @@ async fn ensure_account(pool: &SqlitePool, owner_type: &str, owner_id: &str) -> 
     Ok(id)
 }
 
-pub async fn has_account_currency(pool: &SqlitePool, account_id: i64, currency: &str) -> AppResult<bool> {
+pub async fn has_account_currency(
+    pool: &SqlitePool,
+    account_id: i64,
+    currency: &str,
+) -> AppResult<bool> {
     let exists = sqlx::query_scalar::<_, i64>(
         "SELECT 1 FROM account_currency WHERE account_id = ?1 AND currency = ?2 LIMIT 1",
     )
@@ -269,7 +270,11 @@ pub async fn has_account_currency(pool: &SqlitePool, account_id: i64, currency: 
     Ok(exists)
 }
 
-pub async fn ensure_account_currency(pool: &SqlitePool, account_id: i64, currency: &str) -> AppResult<()> {
+pub async fn ensure_account_currency(
+    pool: &SqlitePool,
+    account_id: i64,
+    currency: &str,
+) -> AppResult<()> {
     ensure_account_currency_with_flags(pool, account_id, currency, 0, 0).await
 }
 
@@ -324,8 +329,11 @@ pub async fn ensure_currency_account(
     Ok(id)
 }
 
-
-pub async fn ensure_projection_row(pool: &SqlitePool, account_id: i64, currency: &str) -> AppResult<()> {
+pub async fn ensure_projection_row(
+    pool: &SqlitePool,
+    account_id: i64,
+    currency: &str,
+) -> AppResult<()> {
     let now = now_rfc3339();
     sqlx::query(
         "INSERT OR IGNORE INTO balance_projection(account_id, currency, available_minor, hold_minor, updated_at)

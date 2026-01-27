@@ -1,12 +1,12 @@
 use axum::{
+    Json,
     http::StatusCode,
     response::{IntoResponse, Response},
-    Json,
 };
 use serde::Serialize;
 
-use wallet_domain::DomainError;
 use wallet_app::AppError;
+use wallet_domain::DomainError;
 
 pub type ApiResult<T> = Result<T, ApiError>;
 
@@ -87,14 +87,7 @@ impl IntoResponse for ApiError {
             ApiError::Db(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string(), None),
         };
 
-        (
-            status,
-            Json(ErrorBody {
-                error: msg,
-                code,
-            }),
-        )
-            .into_response()
+        (status, Json(ErrorBody { error: msg, code })).into_response()
     }
 }
 

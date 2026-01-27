@@ -4,10 +4,9 @@ use sqlx::{Sqlite, SqlitePool, Transaction};
 use wallet_domain::core;
 
 use crate::db;
-use wallet_app::{AppError, AppResult};
 use wallet_app::*;
+use wallet_app::{AppError, AppResult};
 use wallet_domain::*;
-
 
 async fn ensure_currency_supported_tx(
     tx: &mut Transaction<'_, Sqlite>,
@@ -360,7 +359,7 @@ pub async fn v33_list_account_txs_user(
     let (root_account_id, currency, _status, _label, _created_at, _closed_at) =
         v33_resolve_currency_account_for_user(pool, user_id, currency_account_id).await?;
 
-    let limit = limit.min(200).max(1);
+    let limit = limit.clamp(1, 200);
 
     let rows = if let Some(before_ts) = before {
         sqlx::query_as::<
@@ -424,7 +423,17 @@ pub async fn v33_list_account_txs_user(
     let items: Vec<TxItem> = rows
         .into_iter()
         .map(
-            |(tx_id, tx_type, state, currency, amount_minor, direction, created_at, posted_at, meta)| {
+            |(
+                tx_id,
+                tx_type,
+                state,
+                currency,
+                amount_minor,
+                direction,
+                created_at,
+                posted_at,
+                meta,
+            )| {
                 let dir = EntryDirection::from_db_str(&direction).map_err(AppError::from)?;
                 let signed_amount = dir.apply_sign(amount_minor);
                 let description = match TxType::from_db_str_lossy(&tx_type) {
@@ -461,7 +470,6 @@ pub async fn v33_list_account_txs_user(
                     None => tx_type.clone(),
                 };
 
-
                 Ok(TxItem {
                     tx_id,
                     tx_type,
@@ -478,7 +486,6 @@ pub async fn v33_list_account_txs_user(
 
     Ok(items)
 }
-
 
 // ------------------------ tx receipt ------------------------
 
@@ -542,7 +549,10 @@ fn parse_receipt_metadata(
         Err(_) => return (None, None, None, None),
     };
 
-    let memo = v.get("memo").and_then(|x| x.as_str()).map(|x| x.to_string());
+    let memo = v
+        .get("memo")
+        .and_then(|x| x.as_str())
+        .map(|x| x.to_string());
     let merchant_label = v
         .get("merchant_label")
         .and_then(|x| x.as_str())

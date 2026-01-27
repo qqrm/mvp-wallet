@@ -296,4 +296,3 @@ impl std::str::FromStr for TxId {
         TxId::parse(s)
     }
 }
-
