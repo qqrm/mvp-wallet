@@ -12,4 +12,4 @@ Retention (v3.2): TTL 48 часов для записей идемпотентн
 - Любая операция, меняющая баланс, должна эксклюзивно блокировать затронутые аккаунты (`SELECT ... FOR UPDATE`) или выполняться в `SERIALIZABLE` транзакциях.
 - Для операций с двумя аккаунтами (P2P) — блокировать в согласованном порядке (например, по отсортированному `user_id`/`account_id`) во избежание deadlocks.
 
-См. первоисточник: `00_source_pdf_text/page_014.md` и `page_038.md`.
+См. первоисточник: [SOURCE 1 §p014](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p014) и [SOURCE 1 §p038](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p038).

@@ -5,4 +5,4 @@
 - Шифрование: TLS in transit; at-rest через дисковые механизмы Postgres/KMS; минимизация чувствительных полей в MVP.
 - Rate limits: per-user и per-IP на transfer/fx/spend/login (через gateway или middleware).
 
-См. первоисточник: `00_source_pdf_text/page_009.md` и `page_038.md`.
+См. первоисточник: [SOURCE 1 §p009](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p009) и [SOURCE 1 §p038](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p038).

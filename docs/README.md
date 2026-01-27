@@ -1,11 +1,18 @@
 # Documentation
 
-This repository contains a working set of specifications and supporting documents.
+This repository contains project documentation for the Uzum Wallet MVP (v3.3).
 
-- Blueprint v3.3 (Markdown tree): `docs/blueprint/v3.3/`
-- Working RU docs (raw/dirty but useful): `docs/working/v3.3-working-ru/`
-- Raw source (TXT): `docs/blueprint/v3.3/raw/`
+Start here:
+- [Blueprint v3.3 — MVP Spec (EN)](./blueprint/v3.3/spec/README.md)
+- [Blueprint v3.3 — Sources (cleaned, integrated)](./blueprint/v3.3/appendix/sources/README.md)
+- [Working v3.3 — RU documentation (first-class)](./working/v3.3-working-ru/README.md)
 
-Notes:
-- Treat `docs/blueprint/v3.3/spec/` as the closest to "source of truth".
-- `docs/working/...` is kept for reference and future cleanup.
+Conventions:
+- The spec (`docs/blueprint/v3.3/spec/`) is the implementable "source of truth".
+- Sources are provided for traceability; references in RU docs point to stable anchors in the integrated source files.
+
+Lint:
+- Run: `python scripts/lint_docs.py`
+
+Lint:
+- Run: `python scripts/lint_docs.py`

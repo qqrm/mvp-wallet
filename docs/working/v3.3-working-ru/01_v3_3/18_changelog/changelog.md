@@ -19,4 +19,4 @@ v3.1 → v3.2:
 - Добавлен Product Decision Record (PDR)
 - Расширен post-MVP roadmap
 
-См. первоисточник: `00_source_pdf_text/page_004.md` и `page_033.md`–`page_034.md`.
+См. первоисточник: [SOURCE 1 §p004](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p004) и [SOURCE 1 §p033](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p033)–[SOURCE 1 §p034](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p034).

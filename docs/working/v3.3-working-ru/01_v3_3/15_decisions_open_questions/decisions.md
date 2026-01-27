@@ -14,4 +14,4 @@
 PDR (v3.2):
 - Содержит Q&A с обоснованиями принятых решений (в частности TTL 48h, статический fx_rates, пагинация admin/search и т.п.).
 
-См. первоисточник: `00_source_pdf_text/page_030.md`–`page_031.md` и `page_033.md`–`page_034.md`.
+См. первоисточник: [SOURCE 1 §p030](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p030)–[SOURCE 1 §p031](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p031) и [SOURCE 1 §p033](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p033)–[SOURCE 1 §p034](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p034).

@@ -25,4 +25,4 @@ State machines (type-state pattern):
 - FxQuoteState: Created → Active → Expired → Executed
 - AccountState: Active → Closed
 
-См. первоисточник: `00_source_pdf_text/page_009.md` и `page_017.md`.
+См. первоисточник: [SOURCE 1 §p009](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p009) и [SOURCE 1 §p017](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p017).

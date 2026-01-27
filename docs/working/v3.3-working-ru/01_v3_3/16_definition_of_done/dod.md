@@ -9,4 +9,4 @@
 - Observability: correlation_id; audit_event для каждого money/admin action; дашборды ошибок и latency.
 - Persistence: Postgres для staging/prod; backups + restore drill; migrations gated in CI.
 
-См. первоисточник: `00_source_pdf_text/page_032.md`.
+См. первоисточник: [SOURCE 1 §p032](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p032).

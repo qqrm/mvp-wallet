@@ -1,16 +1,11 @@
 # Uzum Wallet Product + Engineering Blueprint — v3.3 (MVP)
 
-This is a Markdown tree conversion of the source TXT blueprint.
+This is the v3.3 documentation set.
 
 Structure:
-- `spec/` — normalized MVP spec (implementable, “Part A”).
-- `appendix/` — full integrated source appendix (verbatim, “Part B”), split by source document and page.
+- `spec/` — implementable MVP specification (normalized).
+- `appendix/sources/` — cleaned integrated source texts (one file per source, with stable anchors).
 
-Notes on conversion:
-- Content is preserved; formatting is improved for readability (headings, lists, code blocks).
-- Some extraction artifacts in the appendix (e.g., missing line breaks around URLs or endpoint rows) were corrected to match the intended meaning.
-- JSON examples are wrapped in fenced code blocks.
-
-## Start here
+Start here:
 - [MVP Spec index](spec/README.md)
-- [Appendix index](appendix/README.md)
+- [Sources index](appendix/sources/README.md)

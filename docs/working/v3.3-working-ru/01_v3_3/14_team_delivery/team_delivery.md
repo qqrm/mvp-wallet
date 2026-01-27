@@ -23,4 +23,4 @@ Critical path:
 - FX rounding + expiry correctness
 - E2E suite green + backups/restore ready
 
-См. первоисточник: `00_source_pdf_text/page_026.md`–`page_027.md`.
+См. первоисточник: [SOURCE 1 §p026](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p026)–[SOURCE 1 §p027](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p027).

@@ -21,4 +21,4 @@ AuditEvent (append-only) обязателен для:
 - FX quote expiry rate
 - error codes distribution
 
-См. первоисточник: `00_source_pdf_text/page_009.md` и `page_018.md`.
+См. первоисточник: [SOURCE 1 §p009](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p009) и [SOURCE 1 §p018](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p018).

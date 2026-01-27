@@ -1,5 +1,6 @@
-# Blueprint v3.3 (Markdown tree)
+# Blueprint v3.3 (local notes)
 
-Start here: `README.md` and `spec/README.md`.
-
-Raw TXT source: `raw/`.
+Start here:
+- `README.md`
+- `spec/README.md`
+- `appendix/sources/README.md`

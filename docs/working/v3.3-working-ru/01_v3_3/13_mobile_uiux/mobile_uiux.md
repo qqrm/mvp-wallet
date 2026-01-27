@@ -24,4 +24,4 @@
 - Settings & Security
 - Limits (read-only)
 
-См. первоисточник: `00_source_pdf_text/page_019.md`–`page_025.md`.
+См. первоисточник: [SOURCE 1 §p019](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p019)–[SOURCE 1 §p025](../../../../blueprint/v3.3/appendix/sources/source_1_blueprint_v3_1.md#p025).
