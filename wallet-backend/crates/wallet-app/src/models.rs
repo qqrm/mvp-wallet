@@ -19,6 +19,31 @@ pub struct ListCurrenciesResponse {
 }
 
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
+pub struct DevUserItem {
+    pub user_id: String,
+    pub display_name: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+pub struct DevUsersResponse {
+    pub users: Vec<DevUserItem>,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+pub struct DevAccountItem {
+    pub account_id: String,
+    pub currency: String,
+    pub available_minor: i64,
+    pub hold_minor: i64,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+pub struct DevUserAccountsResponse {
+    pub user_id: String,
+    pub accounts: Vec<DevAccountItem>,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct TopupRequest {
     pub currency: String,
     pub amount_minor: i64,

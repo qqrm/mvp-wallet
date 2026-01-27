@@ -4,9 +4,10 @@ use wallet_app::{
     AdminCloseAccountResponse, AdminCreateAccountRequest, AdminCreateAccountResponse,
     AdminCreateUserRequest, AdminCreateUserResponse, AdminHoldRequest,
     AdminOpenCurrencyAccountRequest, AdminOpenCurrencyAccountResponse, AdminTopupRequest,
-    BalanceItem, CurrencyItem, ListBalancesResponse, ListCurrenciesResponse, ListTxsQuery,
-    ListTxsResponse, PostOpResponse, RefundResponse, TopupRequest, TransferRequest, TxItem,
-    TxReceiptEntryItem, TxReceiptResponse,
+    BalanceItem, CurrencyItem, DevAccountItem, DevUserAccountsResponse, DevUserItem,
+    DevUsersResponse, ListBalancesResponse, ListCurrenciesResponse, ListTxsQuery, ListTxsResponse,
+    PostOpResponse, RefundResponse, TopupRequest, TransferRequest, TxItem, TxReceiptEntryItem,
+    TxReceiptResponse,
 };
 
 /// OpenAPI document for the MVP.
@@ -28,6 +29,8 @@ use wallet_app::{
         crate::api::wallet_balances,
         crate::api::wallet_txs,
         crate::api::wallet_transfer,
+        crate::api::dev_users,
+        crate::api::dev_user_accounts,
         crate::api::admin_create_user,
         crate::api::admin_open_currency_account,
         crate::api::admin_create_account,
@@ -57,6 +60,10 @@ use wallet_app::{
         AdminTopupRequest,
         AdminHoldRequest,
         CurrencyItem,
+        DevUserItem,
+        DevUsersResponse,
+        DevAccountItem,
+        DevUserAccountsResponse,
         ListCurrenciesResponse,
         ListBalancesResponse,
         ListTxsQuery,

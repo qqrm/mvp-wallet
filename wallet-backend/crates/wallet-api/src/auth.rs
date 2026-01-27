@@ -1,8 +1,10 @@
-use axum::{body::Body, http::Request, middleware::Next, response::Response};
+use axum::{body::Body, extract::State, http::Request, middleware::Next, response::Response};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
+use sqlx::SqlitePool;
 
+use crate::app::AppState;
 use crate::error::{ApiError, ApiResult};
 
 use wallet_domain::UserId;
@@ -19,6 +21,61 @@ pub struct AuthCtx {
     pub user_id: Option<UserId>,
 }
 
+fn dev_no_auth_enabled() -> bool {
+    matches!(std::env::var("WALLET_DEV_NO_AUTH"), Ok(v) if v == "1")
+}
+
+async fn dev_user_from_currency_account(pool: &SqlitePool, account_id: i64) -> Option<UserId> {
+    let owner = sqlx::query_scalar::<_, String>(
+        "SELECT a.owner_id\n         FROM currency_accounts ca\n         JOIN accounts a ON a.id = ca.root_account_id\n         WHERE ca.id = ?1 AND a.owner_type = 'user'\n         LIMIT 1",
+    )
+    .bind(account_id)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten()?;
+
+    UserId::parse(&owner).ok()
+}
+
+async fn dev_auth_ctx(st: &AppState, path: &str) -> AuthCtx {
+    if path.starts_with("/v1/admin") || path.starts_with("/v1/dev") {
+        return AuthCtx {
+            role: Role::Admin,
+            user_id: None,
+        };
+    }
+
+    if let Some(rest) = path.strip_prefix("/v1/wallet/") {
+        let user_id = rest.split('/').next().unwrap_or("");
+        if let Ok(user_id) = UserId::parse(user_id) {
+            return AuthCtx {
+                role: Role::User,
+                user_id: Some(user_id),
+            };
+        }
+    }
+
+    if let Some(rest) = path.strip_prefix("/v1/accounts/") {
+        let account_id_raw = rest.split('/').next().unwrap_or("");
+        let account_id_raw = account_id_raw.trim_start_matches("acc_");
+        if let Ok(account_id) = account_id_raw.parse::<i64>()
+            && let Some(user_id) = dev_user_from_currency_account(&st.pool, account_id).await
+        {
+            return AuthCtx {
+                role: Role::User,
+                user_id: Some(user_id),
+            };
+        }
+    }
+
+    let fallback = UserId::parse("u01").expect("dev fallback user id");
+    AuthCtx {
+        role: Role::User,
+        user_id: Some(fallback),
+    }
+}
+
 /// Simple MVP auth:
 /// - `Authorization: Bearer <ADMIN_TOKEN>` -> Admin
 /// - `Authorization: Bearer user:<user_id>:<sig>` -> User
@@ -27,7 +84,11 @@ pub struct AuthCtx {
 /// Notes:
 /// - This is not intended as production-grade auth. It's a minimal RBAC gate for the MVP.
 /// - We keep it deterministic and small on purpose.
-pub async fn auth_middleware(mut req: Request<Body>, next: Next) -> Result<Response, ApiError> {
+pub async fn auth_middleware(
+    State(st): State<AppState>,
+    mut req: Request<Body>,
+    next: Next,
+) -> Result<Response, ApiError> {
     // Public endpoints.
     let path = req.uri().path();
     if path == "/health"
@@ -35,6 +96,12 @@ pub async fn auth_middleware(mut req: Request<Body>, next: Next) -> Result<Respo
         || path.starts_with("/swagger-ui")
         || path == "/v1/currencies"
     {
+        return Ok(next.run(req).await);
+    }
+
+    if dev_no_auth_enabled() {
+        let ctx = dev_auth_ctx(&st, path).await;
+        req.extensions_mut().insert(ctx);
         return Ok(next.run(req).await);
     }
 

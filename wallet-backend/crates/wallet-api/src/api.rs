@@ -41,6 +41,8 @@ pub fn routes() -> Router<AppState> {
         .route("/v1/wallet/{user_id}/balances", get(wallet_balances))
         .route("/v1/wallet/{user_id}/txs", get(wallet_txs))
         .route("/v1/wallet/{user_id}/transfer", post(wallet_transfer))
+        .route("/v1/dev/users", get(dev_users))
+        .route("/v1/dev/users/{user_id}/accounts", get(dev_user_accounts))
         // Admin API
         .route("/v1/admin/users", post(admin_create_user))
         .route(
@@ -325,6 +327,49 @@ pub(crate) async fn wallet_transfer(
             Ok((StatusCode::OK, Json(body)).into_response())
         }
     }
+}
+
+#[utoipa::path(
+    get,
+    path = "/v1/dev/users",
+    responses(
+        (status = 200, description = "User list", body = DevUsersResponse),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden"),
+    )
+)]
+pub(crate) async fn dev_users(
+    State(st): State<AppState>,
+    Extension(auth): Extension<AuthCtx>,
+) -> ApiResult<Json<DevUsersResponse>> {
+    require_admin(&auth)?;
+    let users = wallet_infra::dev::list_dev_users(&st.pool).await?;
+    Ok(Json(DevUsersResponse { users }))
+}
+
+#[utoipa::path(
+    get,
+    path = "/v1/dev/users/{user_id}/accounts",
+    params(("user_id" = String, Path, description = "User ID")),
+    responses(
+        (status = 200, description = "User accounts", body = DevUserAccountsResponse),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden"),
+        (status = 404, description = "Not found"),
+    )
+)]
+pub(crate) async fn dev_user_accounts(
+    State(st): State<AppState>,
+    Extension(auth): Extension<AuthCtx>,
+    Path(user_id): Path<String>,
+) -> ApiResult<Json<DevUserAccountsResponse>> {
+    require_admin(&auth)?;
+    let user = UserId::parse(&user_id)?;
+    let accounts = wallet_infra::dev::list_dev_user_accounts(&st.pool, &user).await?;
+    Ok(Json(DevUserAccountsResponse {
+        user_id: user.into_inner(),
+        accounts,
+    }))
 }
 
 // ------------------------ admin handlers ------------------------

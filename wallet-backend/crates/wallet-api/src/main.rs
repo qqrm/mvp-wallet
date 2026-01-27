@@ -1,6 +1,6 @@
 use tracing_subscriber::EnvFilter;
 
-use wallet_infra::db as infra_db;
+use wallet_infra::{db as infra_db, dev as infra_dev};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -11,6 +11,9 @@ async fn main() -> anyhow::Result<()> {
     let pool = infra_db::create_pool("wallet.db").await?;
     infra_db::migrate(&pool).await?;
     infra_db::ensure_system_accounts(&pool).await?;
+    if infra_dev::dev_seed_enabled() {
+        infra_dev::seed_demo_data(&pool).await?;
+    }
 
     let app = wallet_api::app::build_app(pool);
 
