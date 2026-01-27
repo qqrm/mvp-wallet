@@ -296,6 +296,35 @@ pub async fn ensure_account_currency_with_flags(
     Ok(())
 }
 
+pub async fn ensure_currency_account(
+    pool: &SqlitePool,
+    root_account_id: i64,
+    currency: &str,
+) -> AppResult<i64> {
+    let now = now_rfc3339();
+    // Best-effort: if the row exists already, keep its original created_at/label.
+    sqlx::query(
+        "INSERT OR IGNORE INTO currency_accounts(root_account_id, currency, status, created_at, label)
+         VALUES (?1, ?2, 'active', ?3, '')",
+    )
+    .bind(root_account_id)
+    .bind(currency)
+    .bind(now)
+    .execute(pool)
+    .await?;
+
+    let id = sqlx::query_scalar::<_, i64>(
+        "SELECT id FROM currency_accounts WHERE root_account_id = ?1 AND currency = ?2",
+    )
+    .bind(root_account_id)
+    .bind(currency)
+    .fetch_one(pool)
+    .await?;
+
+    Ok(id)
+}
+
+
 pub async fn ensure_projection_row(pool: &SqlitePool, account_id: i64, currency: &str) -> AppResult<()> {
     let now = now_rfc3339();
     sqlx::query(

@@ -26,6 +26,16 @@ pub fn routes() -> Router<AppState> {
         .route("/health", get(health))
         .route("/v1/currencies", get(currencies_list))
         .route("/v1/transactions/{tx_id}", get(tx_receipt))
+        // v3.3 (SoT) user-facing API (read-only, additive)
+        .route("/v1/profile", get(v33_profile))
+        .route("/v1/accounts", get(v33_accounts_list))
+        .route("/v1/accounts/{account_id}", get(v33_account_details))
+        .route("/v1/accounts/{account_id}/balance", get(v33_account_balance))
+        .route(
+            "/v1/accounts/{account_id}/transactions",
+            get(v33_account_transactions),
+        )
+
         .route("/v1/wallet/{user_id}/balances", get(wallet_balances))
         .route("/v1/wallet/{user_id}/txs", get(wallet_txs))
         .route("/v1/wallet/{user_id}/transfer", post(wallet_transfer))
@@ -126,6 +136,82 @@ fn parse_account_id_param(account_id: &str) -> ApiResult<AccountId> {
         .map_err(|_| ApiError::BadRequest("invalid account_id"))?;
     Ok(AccountId::new(id))
 }
+
+fn parse_currency_account_id_param(account_id: &str) -> ApiResult<i64> {
+    let raw = account_id.trim();
+    let raw = raw.strip_prefix("acc_").unwrap_or(raw);
+    let id: i64 = raw
+        .parse()
+        .map_err(|_| ApiError::BadRequest("invalid account_id"))?;
+    Ok(id)
+}
+
+pub(crate) async fn v33_profile(
+    Extension(auth): Extension<AuthCtx>,
+) -> ApiResult<Json<ProfileResponse>> {
+    let user_id = require_user(&auth)?;
+    Ok(Json(ProfileResponse {
+        phone_number: user_id.as_str().to_string(),
+        email: None,
+        full_name: None,
+    }))
+}
+
+pub(crate) async fn v33_accounts_list(
+    State(st): State<AppState>,
+    Extension(auth): Extension<AuthCtx>,
+) -> ApiResult<Json<ListAccountsResponseV33>> {
+    let user_id = require_user(&auth)?;
+    let accounts = service::v33_list_accounts(&st.pool, &user_id).await?;
+    Ok(Json(ListAccountsResponseV33 { accounts }))
+}
+
+pub(crate) async fn v33_account_details(
+    State(st): State<AppState>,
+    Extension(auth): Extension<AuthCtx>,
+    Path(account_id): Path<String>,
+) -> ApiResult<Json<AccountDetailsResponseV33>> {
+    let currency_account_id = parse_currency_account_id_param(&account_id)?;
+
+    if require_admin(&auth).is_ok() {
+        let r = service::v33_get_account_details_admin(&st.pool, currency_account_id).await?;
+        return Ok(Json(r));
+    }
+
+    let user_id = require_user(&auth)?;
+    let r = service::v33_get_account_details_user(&st.pool, &user_id, currency_account_id).await?;
+    Ok(Json(r))
+}
+
+pub(crate) async fn v33_account_balance(
+    State(st): State<AppState>,
+    Extension(auth): Extension<AuthCtx>,
+    Path(account_id): Path<String>,
+) -> ApiResult<Json<AccountBalanceResponseV33>> {
+    let currency_account_id = parse_currency_account_id_param(&account_id)?;
+    let user_id = require_user(&auth)?;
+    let r = service::v33_get_account_balance_user(&st.pool, &user_id, currency_account_id).await?;
+    Ok(Json(r))
+}
+
+pub(crate) async fn v33_account_transactions(
+    State(st): State<AppState>,
+    Extension(auth): Extension<AuthCtx>,
+    Path(account_id): Path<String>,
+    Query(q): Query<ListAccountTransactionsQueryV33>,
+) -> ApiResult<Json<ListAccountTransactionsResponseV33>> {
+    let currency_account_id = parse_currency_account_id_param(&account_id)?;
+    let user_id = require_user(&auth)?;
+
+    let limit = q.limit.unwrap_or(100);
+    let txs = service::v33_list_account_txs_user(&st.pool, &user_id, currency_account_id, q.before, limit).await?;
+
+    Ok(Json(ListAccountTransactionsResponseV33 {
+        account_id: format!("acc_{}", currency_account_id),
+        txs,
+    }))
+}
+
 
 #[utoipa::path(
     get,

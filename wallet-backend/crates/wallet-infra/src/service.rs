@@ -176,6 +176,310 @@ pub async fn list_txs(pool: &SqlitePool, user_id: &UserId, limit: u32) -> AppRes
     Ok(items)
 }
 
+// ------------------------ v3.3 (SoT) read API helpers ------------------------
+
+fn fmt_currency_account_id(id: i64) -> String {
+    format!("acc_{}", id)
+}
+
+pub async fn v33_list_accounts(
+    pool: &SqlitePool,
+    user_id: &UserId,
+) -> AppResult<Vec<AccountItemV33>> {
+    let root_account_id = db::get_user_account_id_or_404(pool, user_id.as_str()).await?;
+    // currency_accounts is an API-facing mapping layer: one row per (root_account_id, currency).
+    let rows = sqlx::query_as::<_, (i64, String, String, String)>(
+        "SELECT id, currency, status, label
+         FROM currency_accounts
+         WHERE root_account_id = ?1
+         ORDER BY currency ASC",
+    )
+    .bind(root_account_id)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|(id, currency, status, label)| AccountItemV33 {
+            account_id: fmt_currency_account_id(id),
+            currency,
+            status,
+            label,
+        })
+        .collect())
+}
+
+async fn v33_resolve_currency_account_for_user(
+    pool: &SqlitePool,
+    user_id: &UserId,
+    currency_account_id: i64,
+) -> AppResult<(i64, String, String, String, String, Option<String>)> {
+    // Returns: (root_account_id, currency, status, label, created_at, closed_at)
+    let row = sqlx::query_as::<_, (i64, String, String, String, String, Option<String>)>(
+        "SELECT ca.root_account_id, ca.currency, ca.status, ca.label, ca.created_at, ca.closed_at
+         FROM currency_accounts ca
+         JOIN accounts a ON a.id = ca.root_account_id
+         WHERE ca.id = ?1 AND a.owner_type = 'user' AND a.owner_id = ?2
+         LIMIT 1",
+    )
+    .bind(currency_account_id)
+    .bind(user_id.as_str())
+    .fetch_optional(pool)
+    .await?;
+
+    row.ok_or(AppError::NotFound("account not found"))
+}
+
+async fn v33_resolve_currency_account_admin(
+    pool: &SqlitePool,
+    currency_account_id: i64,
+) -> AppResult<(i64, String, String, String, String, Option<String>, String)> {
+    // Returns: (root_account_id, currency, status, label, created_at, closed_at, owner_id)
+    let row = sqlx::query_as::<_, (i64, String, String, String, String, Option<String>, String)>(
+        "SELECT ca.root_account_id, ca.currency, ca.status, ca.label, ca.created_at, ca.closed_at, a.owner_id
+         FROM currency_accounts ca
+         JOIN accounts a ON a.id = ca.root_account_id
+         WHERE ca.id = ?1 AND a.owner_type = 'user'
+         LIMIT 1",
+    )
+    .bind(currency_account_id)
+    .fetch_optional(pool)
+    .await?;
+
+    row.ok_or(AppError::NotFound("account not found"))
+}
+
+pub async fn v33_get_account_balance_user(
+    pool: &SqlitePool,
+    user_id: &UserId,
+    currency_account_id: i64,
+) -> AppResult<AccountBalanceResponseV33> {
+    let (root_account_id, currency, _status, _label, _created_at, _closed_at) =
+        v33_resolve_currency_account_for_user(pool, user_id, currency_account_id).await?;
+
+    let bal = sqlx::query_as::<_, (i64, i64)>(
+        "SELECT available_minor, hold_minor
+         FROM balance_projection
+         WHERE account_id = ?1 AND currency = ?2
+         LIMIT 1",
+    )
+    .bind(root_account_id)
+    .bind(&currency)
+    .fetch_optional(pool)
+    .await?
+    .unwrap_or((0, 0));
+
+    Ok(AccountBalanceResponseV33 {
+        account_id: fmt_currency_account_id(currency_account_id),
+        currency,
+        available_minor: bal.0,
+        hold_minor: bal.1,
+    })
+}
+
+pub async fn v33_get_account_details_user(
+    pool: &SqlitePool,
+    user_id: &UserId,
+    currency_account_id: i64,
+) -> AppResult<AccountDetailsResponseV33> {
+    let (root_account_id, currency, status, label, created_at, closed_at) =
+        v33_resolve_currency_account_for_user(pool, user_id, currency_account_id).await?;
+
+    let bal = sqlx::query_as::<_, (i64, i64)>(
+        "SELECT available_minor, hold_minor
+         FROM balance_projection
+         WHERE account_id = ?1 AND currency = ?2
+         LIMIT 1",
+    )
+    .bind(root_account_id)
+    .bind(&currency)
+    .fetch_optional(pool)
+    .await?
+    .unwrap_or((0, 0));
+
+    Ok(AccountDetailsResponseV33 {
+        account_id: fmt_currency_account_id(currency_account_id),
+        currency: currency.clone(),
+        status,
+        label,
+        created_at,
+        closed_at,
+        balance: AccountBalanceResponseV33 {
+            account_id: fmt_currency_account_id(currency_account_id),
+            currency,
+            available_minor: bal.0,
+            hold_minor: bal.1,
+        },
+        owner_phone_number: None,
+    })
+}
+
+pub async fn v33_get_account_details_admin(
+    pool: &SqlitePool,
+    currency_account_id: i64,
+) -> AppResult<AccountDetailsResponseV33> {
+    let (root_account_id, currency, status, label, created_at, closed_at, owner_id) =
+        v33_resolve_currency_account_admin(pool, currency_account_id).await?;
+
+    let bal = sqlx::query_as::<_, (i64, i64)>(
+        "SELECT available_minor, hold_minor
+         FROM balance_projection
+         WHERE account_id = ?1 AND currency = ?2
+         LIMIT 1",
+    )
+    .bind(root_account_id)
+    .bind(&currency)
+    .fetch_optional(pool)
+    .await?
+    .unwrap_or((0, 0));
+
+    Ok(AccountDetailsResponseV33 {
+        account_id: fmt_currency_account_id(currency_account_id),
+        currency: currency.clone(),
+        status,
+        label,
+        created_at,
+        closed_at,
+        balance: AccountBalanceResponseV33 {
+            account_id: fmt_currency_account_id(currency_account_id),
+            currency,
+            available_minor: bal.0,
+            hold_minor: bal.1,
+        },
+        owner_phone_number: Some(owner_id),
+    })
+}
+
+pub async fn v33_list_account_txs_user(
+    pool: &SqlitePool,
+    user_id: &UserId,
+    currency_account_id: i64,
+    before: Option<String>,
+    limit: u32,
+) -> AppResult<Vec<TxItem>> {
+    let (root_account_id, currency, _status, _label, _created_at, _closed_at) =
+        v33_resolve_currency_account_for_user(pool, user_id, currency_account_id).await?;
+
+    let limit = limit.min(200).max(1);
+
+    let rows = if let Some(before_ts) = before {
+        sqlx::query_as::<
+            _,
+            (
+                String,         // tx_id
+                String,         // tx_type
+                String,         // state
+                String,         // currency
+                i64,            // amount_minor (absolute)
+                String,         // direction
+                String,         // created_at
+                String,         // posted_at
+                Option<String>, // metadata_json
+            ),
+        >(
+            "SELECT t.id, t.tx_type, t.state, e.currency, e.amount_minor, e.direction,
+                    t.created_at, t.posted_at, t.metadata_json
+             FROM ledger_entries e
+             JOIN ledger_transactions t ON t.id = e.tx_id
+             WHERE e.account_id = ?1 AND e.currency = ?2 AND t.created_at < ?3
+             ORDER BY t.created_at DESC
+             LIMIT ?4",
+        )
+        .bind(root_account_id)
+        .bind(&currency)
+        .bind(before_ts)
+        .bind(limit as i64)
+        .fetch_all(pool)
+        .await?
+    } else {
+        sqlx::query_as::<
+            _,
+            (
+                String,         // tx_id
+                String,         // tx_type
+                String,         // state
+                String,         // currency
+                i64,            // amount_minor (absolute)
+                String,         // direction
+                String,         // created_at
+                String,         // posted_at
+                Option<String>, // metadata_json
+            ),
+        >(
+            "SELECT t.id, t.tx_type, t.state, e.currency, e.amount_minor, e.direction,
+                    t.created_at, t.posted_at, t.metadata_json
+             FROM ledger_entries e
+             JOIN ledger_transactions t ON t.id = e.tx_id
+             WHERE e.account_id = ?1 AND e.currency = ?2
+             ORDER BY t.created_at DESC
+             LIMIT ?3",
+        )
+        .bind(root_account_id)
+        .bind(&currency)
+        .bind(limit as i64)
+        .fetch_all(pool)
+        .await?
+    };
+
+    let items: Vec<TxItem> = rows
+        .into_iter()
+        .map(
+            |(tx_id, tx_type, state, currency, amount_minor, direction, created_at, posted_at, meta)| {
+                let dir = EntryDirection::from_db_str(&direction).map_err(AppError::from)?;
+                let signed_amount = dir.apply_sign(amount_minor);
+                let description = match TxType::from_db_str_lossy(&tx_type) {
+                    Some(TxType::Topup) => "Top up".to_string(),
+                    Some(TxType::Transfer) => {
+                        if let Some(m) = meta.as_deref() {
+                            if let Ok(v) = serde_json::from_str::<serde_json::Value>(m) {
+                                let from = v.get("from_user_id").and_then(|x| x.as_str());
+                                let to = v.get("to_user_id").and_then(|x| x.as_str());
+
+                                match dir {
+                                    EntryDirection::Debit => to
+                                        .map(|t| format!("Transfer to {}", t))
+                                        .unwrap_or_else(|| "Transfer".to_string()),
+                                    EntryDirection::Credit => from
+                                        .map(|f| format!("Transfer from {}", f))
+                                        .unwrap_or_else(|| "Transfer".to_string()),
+                                }
+                            } else {
+                                "Transfer".to_string()
+                            }
+                        } else {
+                            "Transfer".to_string()
+                        }
+                    }
+                    Some(TxType::Payment) => match state.as_str() {
+                        "authorized" => "Hold (authorized)".to_string(),
+                        "posted" => "Card payment".to_string(),
+                        "reversed" => "Hold (reversed)".to_string(),
+                        "refunded" => "Refund".to_string(),
+                        _ => "Payment".to_string(),
+                    },
+                    Some(TxType::Refund) => "Refund".to_string(),
+                    None => tx_type.clone(),
+                };
+
+
+                Ok(TxItem {
+                    tx_id,
+                    tx_type,
+                    state,
+                    currency,
+                    amount_minor: signed_amount,
+                    created_at,
+                    posted_at,
+                    description,
+                })
+            },
+        )
+        .collect::<AppResult<Vec<_>>>()?;
+
+    Ok(items)
+}
+
+
 // ------------------------ tx receipt ------------------------
 
 #[derive(Debug, Clone)]
@@ -380,6 +684,8 @@ pub async fn admin_open_currency_account(
     let existed = db::has_account_currency(pool, account_id, currency.as_str()).await?;
     db::ensure_account_currency_with_flags(pool, account_id, currency.as_str(), 0, 1).await?;
     db::ensure_projection_row(pool, account_id, currency.as_str()).await?;
+    // v3.3 mapping layer (API account_id per currency).
+    let _ = db::ensure_currency_account(pool, account_id, currency.as_str()).await?;
     Ok(!existed)
 }
 

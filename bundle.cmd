@@ -1,9 +1,13 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 
-rem Build bundle.zip from the current working tree (includes uncommitted changes).
-rem File list is produced by Git, so .gitignore is respected.
-rem Excludes: .git, target, and bundle.zip itself.
+rem ============================================================
+rem bundle.cmd
+rem Build bundle.zip from the current working tree (includes uncommitted + untracked),
+rem respecting ALL nested .gitignore rules via "git check-ignore".
+rem Smart recursion: if a directory is ignored, it is NOT traversed.
+rem Hard excludes: .git/, target/, and bundle*.zip anywhere.
+rem ============================================================
 
 for /f "usebackq delims=" %%R in (`git rev-parse --show-toplevel 2^>nul`) do set "REPO_ROOT=%%R"
 if "%REPO_ROOT%"=="" (
@@ -14,34 +18,69 @@ if "%REPO_ROOT%"=="" (
 pushd "%REPO_ROOT%" >nul
 
 set "OUT_NAME=bundle.zip"
-
 if exist "%OUT_NAME%" del /f /q "%OUT_NAME%" >nul 2>&1
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$ErrorActionPreference='Stop';" ^
+  "" ^
   "$root = (Resolve-Path -LiteralPath '%REPO_ROOT%').Path;" ^
   "$out  = Join-Path $root '%OUT_NAME%';" ^
+  "" ^
   "Add-Type -AssemblyName System.IO.Compression;" ^
   "Add-Type -AssemblyName System.IO.Compression.FileSystem;" ^
+  "" ^
   "if (Test-Path -LiteralPath $out) { Remove-Item -LiteralPath $out -Force }" ^
   "" ^
-  "$zip = [System.IO.Compression.ZipFile]::Open($out, [System.IO.Compression.ZipArchiveMode]::Create);" ^
-  "try {" ^
-  "  $gitFiles = git -C $root ls-files -co --exclude-standard | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' };" ^
-  "  foreach ($rel in $gitFiles) {" ^
-  "    $relNorm = $rel -replace '/', '\\';" ^
+  "function ToRel([string]$full) {" ^
+  "  $rel = [System.IO.Path]::GetRelativePath($root, $full);" ^
+  "  if ($rel -eq '.') { return '' }" ^
+  "  return $rel -replace '/', '\';" ^
+  "}" ^
   "" ^
-  "    if ($relNorm -match '^(?:\.git\\\\|target\\\\)') { continue }" ^
-  "    if ($relNorm -ieq '%OUT_NAME%') { continue }" ^
-  "" ^
-  "    $full = Join-Path $root $relNorm;" ^
-  "    if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { continue }" ^
-  "" ^
-  "    [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(" ^
-  "      $zip, $full, $relNorm, [System.IO.Compression.CompressionLevel]::Optimal" ^
-  "    ) | Out-Null;" ^
+  "function IsHardExcluded([string]$rel) {" ^
+  "  if ([string]::IsNullOrWhiteSpace($rel)) { return $false }" ^
+  "  $r = $rel -replace '/', '\'" ^
+  "  $parts = $r -split '\\\\'" ^
+  "  foreach ($p in $parts) {" ^
+  "    if ($p -ieq '.git') { return $true }" ^
+  "    if ($p -ieq 'target') { return $true }" ^
   "  }" ^
-  "} finally { $zip.Dispose() }"
+  "  $leaf = [System.IO.Path]::GetFileName($r)" ^
+  "  if ($leaf -ilike 'bundle*.zip') { return $true }" ^
+  "  return $false" ^
+  "}" ^
+  "" ^
+  "function IsGitIgnored([string]$rel) {" ^
+  "  if ([string]::IsNullOrWhiteSpace($rel)) { return $false }" ^
+  "  & git -C $root check-ignore -q -- $rel" ^
+  "  return ($LASTEXITCODE -eq 0)" ^
+  "}" ^
+  "" ^
+  "function Walk([string]$dir) {" ^
+  "  Get-ChildItem -LiteralPath $dir -Force -ErrorAction Stop | ForEach-Object {" ^
+  "    $full = $_.FullName" ^
+  "    $rel  = ToRel $full" ^
+  "" ^
+  "    if (IsHardExcluded $rel) { return }" ^
+  "" ^
+  "    # If gitignore says 'ignored', prune immediately (esp. directories)." ^
+  "    if (IsGitIgnored $rel) { return }" ^
+  "" ^
+  "    if ($_.PSIsContainer) {" ^
+  "      # Avoid walking into reparse points (junctions/symlinks) to prevent surprises." ^
+  "      if (($_.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return }" ^
+  "      Walk $full" ^
+  "    } else {" ^
+  "      if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { return }" ^
+  "      [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(" ^
+  "        $zip, $full, $rel, [System.IO.Compression.CompressionLevel]::Optimal" ^
+  "      ) | Out-Null" ^
+  "    }" ^
+  "  }" ^
+  "}" ^
+  "" ^
+  "$zip = [System.IO.Compression.ZipFile]::Open($out, [System.IO.Compression.ZipArchiveMode]::Create);" ^
+  "try { Walk $root } finally { $zip.Dispose() }"
 
 if errorlevel 1 (
   echo ERROR: bundle build failed

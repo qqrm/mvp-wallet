@@ -295,3 +295,65 @@ pub struct RefundResponse {
     pub currency: String,
     pub amount_minor: i64,
 }
+
+
+// ------------------------ v3.3 (SoT) HTTP models ------------------------
+
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+pub struct ProfileResponse {
+    pub phone_number: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub full_name: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+pub struct AccountItemV33 {
+    pub account_id: String, // "acc_<id>"
+    pub currency: String,
+    pub status: String, // 'active' | 'closed'
+    pub label: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+pub struct ListAccountsResponseV33 {
+    pub accounts: Vec<AccountItemV33>,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+pub struct AccountBalanceResponseV33 {
+    pub account_id: String,
+    pub currency: String,
+    pub available_minor: i64,
+    pub hold_minor: i64,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+pub struct AccountDetailsResponseV33 {
+    pub account_id: String, // "acc_<id>"
+    pub currency: String,
+    pub status: String,
+    pub label: String,
+    pub created_at: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub closed_at: Option<String>,
+    pub balance: AccountBalanceResponseV33,
+    // Admin-only field (best effort) if the endpoint is accessed with admin auth.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owner_phone_number: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, IntoParams)]
+pub struct ListAccountTransactionsQueryV33 {
+    /// Return transactions strictly before this timestamp (RFC3339). If absent, returns newest.
+    pub before: Option<String>,
+    /// Number of items to return. Default is 100.
+    pub limit: Option<u32>,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+pub struct ListAccountTransactionsResponseV33 {
+    pub account_id: String,
+    pub txs: Vec<TxItem>,
+}
