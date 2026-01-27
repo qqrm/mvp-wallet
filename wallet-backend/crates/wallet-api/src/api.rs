@@ -30,12 +30,14 @@ pub fn routes() -> Router<AppState> {
         .route("/v1/profile", get(v33_profile))
         .route("/v1/accounts", get(v33_accounts_list))
         .route("/v1/accounts/{account_id}", get(v33_account_details))
-        .route("/v1/accounts/{account_id}/balance", get(v33_account_balance))
+        .route(
+            "/v1/accounts/{account_id}/balance",
+            get(v33_account_balance),
+        )
         .route(
             "/v1/accounts/{account_id}/transactions",
             get(v33_account_transactions),
         )
-
         .route("/v1/wallet/{user_id}/balances", get(wallet_balances))
         .route("/v1/wallet/{user_id}/txs", get(wallet_txs))
         .route("/v1/wallet/{user_id}/transfer", post(wallet_transfer))
@@ -204,14 +206,20 @@ pub(crate) async fn v33_account_transactions(
     let user_id = require_user(&auth)?;
 
     let limit = q.limit.unwrap_or(100);
-    let txs = service::v33_list_account_txs_user(&st.pool, &user_id, currency_account_id, q.before, limit).await?;
+    let txs = service::v33_list_account_txs_user(
+        &st.pool,
+        &user_id,
+        currency_account_id,
+        q.before,
+        limit,
+    )
+    .await?;
 
     Ok(Json(ListAccountTransactionsResponseV33 {
         account_id: format!("acc_{}", currency_account_id),
         txs,
     }))
 }
-
 
 #[utoipa::path(
     get,

@@ -1,13 +1,12 @@
 use utoipa::OpenApi;
 
 use wallet_app::{
-    AdminCreateAccountRequest, AdminCreateAccountResponse, AdminCloseAccountResponse,
-    AdminCreateUserRequest, AdminCreateUserResponse, AdminHoldRequest, AdminOpenCurrencyAccountRequest,
-    AdminOpenCurrencyAccountResponse, AdminTopupRequest, BalanceItem, CurrencyItem, ListCurrenciesResponse, ListBalancesResponse,
-    ListTxsQuery, ListTxsResponse, PostOpResponse, RefundResponse, TopupRequest, TransferRequest,
-    TxItem,
-    TxReceiptEntryItem,
-    TxReceiptResponse,
+    AdminCloseAccountResponse, AdminCreateAccountRequest, AdminCreateAccountResponse,
+    AdminCreateUserRequest, AdminCreateUserResponse, AdminHoldRequest,
+    AdminOpenCurrencyAccountRequest, AdminOpenCurrencyAccountResponse, AdminTopupRequest,
+    BalanceItem, CurrencyItem, ListBalancesResponse, ListCurrenciesResponse, ListTxsQuery,
+    ListTxsResponse, PostOpResponse, RefundResponse, TopupRequest, TransferRequest, TxItem,
+    TxReceiptEntryItem, TxReceiptResponse,
 };
 
 /// OpenAPI document for the MVP.

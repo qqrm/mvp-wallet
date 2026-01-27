@@ -7,7 +7,6 @@ use crate::db;
 use wallet_app::{AppError, AppResult};
 use wallet_domain::{IdempotencyKey, TxId};
 
-
 const IN_PROGRESS_TTL_SECS: i64 = 30;
 
 #[derive(Debug)]

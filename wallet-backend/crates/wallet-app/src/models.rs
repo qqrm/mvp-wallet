@@ -296,7 +296,6 @@ pub struct RefundResponse {
     pub amount_minor: i64,
 }
 
-
 // ------------------------ v3.3 (SoT) HTTP models ------------------------
 
 #[derive(Debug, Deserialize, Serialize, ToSchema)]

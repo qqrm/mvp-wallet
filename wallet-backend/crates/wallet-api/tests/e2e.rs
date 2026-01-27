@@ -362,7 +362,11 @@ async fn txs(app: TestApp, user: &str, limit: usize) -> serde_json::Value {
     serde_json::from_slice(&body).unwrap()
 }
 
-async fn tx_receipt(app: TestApp, bearer: Option<String>, tx_id: &str) -> (StatusCode, serde_json::Value) {
+async fn tx_receipt(
+    app: TestApp,
+    bearer: Option<String>,
+    tx_id: &str,
+) -> (StatusCode, serde_json::Value) {
     let (st, body) = call(app, req_get(&format!("/v1/transactions/{tx_id}"), bearer)).await;
     let v: serde_json::Value = serde_json::from_slice(&body)
         .unwrap_or_else(|_| json!({"raw": String::from_utf8_lossy(&body)}));
@@ -482,9 +486,24 @@ async fn transfer_receipt_visible_to_both_parties() {
     admin_open_currency(ctx.app.clone(), "bob", "UZS").await;
     admin_open_currency(ctx.app.clone(), "charlie", "UZS").await;
 
-    let _ = admin_topup(ctx.app.clone(), "alice", "UZS", 50_000, "seed-alice-receipt").await;
+    let _ = admin_topup(
+        ctx.app.clone(),
+        "alice",
+        "UZS",
+        50_000,
+        "seed-alice-receipt",
+    )
+    .await;
 
-    let (st, tr) = transfer(ctx.app.clone(), "alice", "bob", "UZS", 20_000, "t-receipt-1").await;
+    let (st, tr) = transfer(
+        ctx.app.clone(),
+        "alice",
+        "bob",
+        "UZS",
+        20_000,
+        "t-receipt-1",
+    )
+    .await;
     assert_eq!(st, StatusCode::OK);
     let tx_id = tr["tx_id"].as_str().unwrap().to_string();
 

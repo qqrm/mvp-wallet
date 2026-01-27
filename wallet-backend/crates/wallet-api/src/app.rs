@@ -1,4 +1,4 @@
-use axum::{middleware, Router};
+use axum::{Router, middleware};
 use sqlx::SqlitePool;
 use tower_http::cors::{Any, CorsLayer};
 use utoipa::OpenApi;
