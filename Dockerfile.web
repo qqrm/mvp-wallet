@@ -1,0 +1,7 @@
+# Dev-focused container for the Vue (Vite) app.
+FROM node:20-alpine
+
+WORKDIR /repo/wallet-web
+
+# The source is bind-mounted in docker-compose; install deps at runtime into a named volume.
+CMD ["sh", "-lc", "npm ci && npm run dev -- --host 0.0.0.0 --port 5173"]
