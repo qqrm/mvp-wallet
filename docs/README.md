@@ -1,4 +1,4 @@
-# Uzum Wallet Product + Engineering Blueprint — v3.3 (MVP)
+# Product + Engineering Blueprint — v3.3 (MVP)
 
 This is the v3.3 documentation set.
 
