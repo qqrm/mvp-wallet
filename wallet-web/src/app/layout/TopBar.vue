@@ -25,9 +25,6 @@ const handleThemeUpdate = (value: ThemeMode) => {
         <div class="app-title">Wallet</div>
         <span class="env-pill" title="Frontend demo">Demo</span>
       </div>
-      <p class="app-subtitle">
-        API: <span class="mono">{{ settings.apiBaseUrl }}</span>
-      </p>
     </div>
 
     <USpace align="center" :size="12" wrap class="topbar-actions">
@@ -78,12 +75,6 @@ const handleThemeUpdate = (value: ThemeMode) => {
   letter-spacing: -0.01em;
 }
 
-.app-subtitle {
-  margin: 6px 0 0;
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--text-muted);
-}
 
 .env-pill {
   display: inline-flex;
@@ -99,11 +90,6 @@ const handleThemeUpdate = (value: ThemeMode) => {
   flex: 0 0 auto;
 }
 
-.mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 12px;
-  font-weight: 600;
-}
 
 .topbar-actions {
   align-items: center;

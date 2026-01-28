@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, h } from "vue"
 import { useRoute, useRouter, RouterLink } from "vue-router"
-import { UButton, UInput, UMenu, USelect, USpace, UText, type MenuOption } from "@uzum-tech/ui"
+import { UButton, UInput, UMenu, USelect, USpace, type MenuOption } from "@uzum-tech/ui"
 import { useSettingsStore, type ThemeMode } from "../stores/settings"
 
 type NavItem = {
@@ -77,8 +77,6 @@ const handleUpdate = (value: string | number) => {
           <div class="brand-title">Wallet</div>
           <span class="env-pill" title="Frontend demo">Demo</span>
         </div>
-        <UText depth="3" class="brand-subtitle">Web console</UText>
-        <div class="brand-api">API: <span class="mono">{{ settings.apiBaseUrl }}</span></div>
       </div>
     </div>
 

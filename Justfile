@@ -18,18 +18,7 @@ help:
 # --------------------
 
 web-install:
-    @pwsh -NoLogo -NoProfile -Command ^
-        "$ProgressPreference='SilentlyContinue'; " ^
-        "Set-StrictMode -Version Latest; " ^
-        "Push-Location 'wallet-web'; " ^
-        "npm ci --no-audit --no-fund; " ^
-        "if ($LASTEXITCODE -ne 0) { " ^
-        "  Write-Host 'npm ci failed (lock mismatch). Running npm install to resync lockfile...' -ForegroundColor Yellow; " ^
-        "  npm install --no-audit --no-fund; " ^
-        "  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } " ^
-        "} " ^
-        "Pop-Location"
-
+	@pwsh -NoLogo -NoProfile -EncodedCommand UwBlAHQALQBTAHQAcgBpAGMAdABNAG8AZABlACAALQBWAGUAcgBzAGkAbwBuACAATABhAHQAZQBzAHQACgBQAHUAcwBoAC0ATABvAGMAYQB0AGkAbwBuACAAIgB3AGEAbABsAGUAdAAtAHcAZQBiACIACgBuAHAAbQAgAGMAaQAgAC0ALQBuAG8ALQBhAHUAZABpAHQAIAAtAC0AbgBvAC0AZgB1AG4AZAAKAGkAZgAgACgAJABMAEEAUwBUAEUAWABJAFQAQwBPAEQARQAgAC0AbgBlACAAMAApACAAewAKACAAIABXAHIAaQB0AGUALQBIAG8AcwB0ACAAIgBuAHAAbQAgAGMAaQAgAGYAYQBpAGwAZQBkACAAKABsAG8AYwBrACAAbQBpAHMAbQBhAHQAYwBoACkALgAgAFIAdQBuAG4AaQBuAGcAIABuAHAAbQAgAGkAbgBzAHQAYQBsAGwAIAB0AG8AIAByAGUAcwB5AG4AYwAgAGwAbwBjAGsAZgBpAGwAZQAuAC4ALgAiACAALQBGAG8AcgBlAGcAcgBvAHUAbgBkAEMAbwBsAG8AcgAgAFkAZQBsAGwAbwB3AAoAIAAgAG4AcABtACAAaQBuAHMAdABhAGwAbAAgAC0ALQBuAG8ALQBhAHUAZABpAHQAIAAtAC0AbgBvAC0AZgB1AG4AZAAKACAAIABpAGYAIAAoACQATABBAFMAVABFAFgASQBUAEMATwBEAEUAIAAtAG4AZQAgADAAKQAgAHsAIABlAHgAaQB0ACAAJABMAEEAUwBUAEUAWABJAFQAQwBPAEQARQAgAH0ACgB9AAoAUABvAHAALQBMAG8AYwBhAHQAaQBvAG4ACgA=
 
 web-build:
   npm --prefix {{WEB_DIR}} run build
