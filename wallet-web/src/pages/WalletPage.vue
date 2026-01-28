@@ -58,32 +58,6 @@ watch(
   { immediate: true },
 )
 
-const copyToClipboard = async (value: string) => {
-  if (!value) return
-  try {
-    await navigator.clipboard.writeText(value)
-    notifySuccess("Copied")
-    return
-  } catch {
-    // fallback for non-secure contexts
-    try {
-      const textarea = document.createElement("textarea")
-      textarea.value = value
-      textarea.style.position = "fixed"
-      textarea.style.left = "-9999px"
-      textarea.style.top = "-9999px"
-      document.body.appendChild(textarea)
-      textarea.focus()
-      textarea.select()
-      const ok = document.execCommand("copy")
-      document.body.removeChild(textarea)
-      if (ok) notifySuccess("Copied")
-      else notifyError("Copy failed")
-    } catch {
-      notifyError("Copy failed")
-    }
-  }
-}
 
 const numberFormatParts = new Intl.NumberFormat(undefined).formatToParts(1000.1)
 const GROUP_SEPARATOR = numberFormatParts.find((part) => part.type === "group")?.value ?? ","
@@ -169,45 +143,6 @@ const txColumns = [
             title: row.id,
           },
           row.id,
-        ),
-        h(
-          "button",
-          {
-            class: "copy-btn",
-            type: "button",
-            title: "Copy transaction id",
-            "aria-label": "Copy transaction id",
-            onClick: (e: MouseEvent) => {
-              e.preventDefault()
-              e.stopPropagation()
-              void copyToClipboard(row.id)
-            },
-          },
-          [
-            h(
-              "svg",
-              {
-                class: "copy-icon",
-                viewBox: "0 0 24 24",
-                fill: "none",
-                xmlns: "http://www.w3.org/2000/svg",
-                "aria-hidden": "true",
-              },
-              [
-                h("path", {
-                  d: "M9 9.5C9 8.11929 10.1193 7 11.5 7H18.5C19.8807 7 21 8.11929 21 9.5V16.5C21 17.8807 19.8807 19 18.5 19H11.5C10.1193 19 9 17.8807 9 16.5V9.5Z",
-                  stroke: "currentColor",
-                  "stroke-width": "1.6",
-                }),
-                h("path", {
-                  d: "M15 7V6C15 4.89543 14.1046 4 13 4H6C4.89543 4 4 4.89543 4 6V13C4 14.1046 4.89543 15 6 15H7",
-                  stroke: "currentColor",
-                  "stroke-width": "1.6",
-                  "stroke-linecap": "round",
-                }),
-              ],
-            ),
-          ],
         ),
       ]),
   },
@@ -609,33 +544,6 @@ const handleSend = async () => {
   font-weight: 700;
 }
 
-.copy-btn {
-  height: 26px;
-  width: 26px;
-  padding: 0;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--text-muted);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.copy-btn:hover {
-  border-color: rgba(112, 0, 255, 0.24);
-  color: var(--text);
-}
-
-.copy-btn:active {
-  transform: translateY(1px);
-}
-
-.copy-icon {
-  width: 14px;
-  height: 14px;
-}
 
 @media (max-width: 1024px) {
   .wallet-header {
