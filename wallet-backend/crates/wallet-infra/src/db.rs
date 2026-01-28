@@ -14,7 +14,7 @@ use wallet_domain::*;
 /// - Windows path parsing for `sqlite://...` is easy to get wrong.
 /// - We want stable location: `<repo>/wallet-backend/wallet.db`.
 /// - We enable WAL + busy_timeout to reduce "database is locked" during concurrent writes.
-pub async fn create_pool(db_file: &str) -> anyhow::Result<SqlitePool> {
+pub fn db_path(db_file: &str) -> PathBuf {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let workspace_root = manifest_dir
         .parent()
@@ -22,7 +22,11 @@ pub async fn create_pool(db_file: &str) -> anyhow::Result<SqlitePool> {
         .map(|p| p.to_path_buf())
         .unwrap_or_else(|| manifest_dir.clone());
 
-    let abs_path: PathBuf = workspace_root.join(db_file);
+    workspace_root.join(db_file)
+}
+
+pub async fn create_pool(db_file: &str) -> anyhow::Result<SqlitePool> {
+    let abs_path = db_path(db_file);
 
     let opts = SqliteConnectOptions::new()
         .filename(&abs_path)

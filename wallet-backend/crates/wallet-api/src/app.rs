@@ -18,12 +18,16 @@ pub fn build_app(pool: SqlitePool) -> Router {
         .allow_headers(Any);
 
     let state = AppState { pool };
+    let auth_state = state.clone();
 
     Router::new()
         .merge(api::routes())
         .merge(SwaggerUi::new("/swagger-ui").url("/api-doc/openapi.json", ApiDoc::openapi()))
         .with_state(state)
         // MVP RBAC gate: Authorization: Bearer ...
-        .layer(middleware::from_fn(auth::auth_middleware))
+        .layer(middleware::from_fn_with_state(
+            auth_state,
+            auth::auth_middleware,
+        ))
         .layer(cors)
 }
