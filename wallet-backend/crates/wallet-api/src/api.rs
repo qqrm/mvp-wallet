@@ -16,7 +16,7 @@ use crate::{
 use wallet_app::*;
 use wallet_domain::*;
 use wallet_infra::{
-    db,
+    admin, db,
     idempotency_http::{self, HttpIdempotencyOutcome},
     service,
 };
@@ -42,7 +42,10 @@ pub fn routes() -> Router<AppState> {
         .route("/v1/wallet/{user_id}/txs", get(wallet_txs))
         .route("/v1/wallet/{user_id}/transfer", post(wallet_transfer))
         // Admin API
-        .route("/v1/admin/users", post(admin_create_user))
+        .route(
+            "/v1/admin/users",
+            get(admin_list_users).post(admin_create_user),
+        )
         .route(
             "/v1/admin/users/{user_id}/accounts",
             post(admin_open_currency_account),
@@ -381,6 +384,39 @@ pub(crate) async fn dev_user_accounts(
 }
 
 // ------------------------ admin handlers ------------------------
+
+#[utoipa::path(
+    get,
+    path = "/v1/admin/users",
+    responses(
+        (status = 200, description = "User list (includes closed users)", body = AdminListUsersResponse),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden"),
+    )
+)]
+pub(crate) async fn admin_list_users(
+    State(st): State<AppState>,
+    Extension(auth): Extension<AuthCtx>,
+) -> ApiResult<Json<AdminListUsersResponse>> {
+    require_admin(&auth)?;
+    // Includes closed/disabled users for admin visibility.
+    let users = admin::list_users(&st.pool)
+        .await?
+        .into_iter()
+        .map(|row| {
+            let label = row.label.trim().to_string();
+            AdminUserItem {
+                display_name: if label.is_empty() {
+                    row.user_id.clone()
+                } else {
+                    label
+                },
+                user_id: row.user_id,
+            }
+        })
+        .collect();
+    Ok(Json(AdminListUsersResponse { users }))
+}
 
 #[utoipa::path(
     post,
