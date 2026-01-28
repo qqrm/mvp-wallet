@@ -136,3 +136,74 @@ export const fetchDevUsers = async (options?: ApiCallOptions): Promise<DevUsersR
     path: "/v1/dev/users",
     method: "GET",
   })
+
+// -------------------- Admin (local dev: no auth) --------------------
+
+export type AdminCreateUserRequest = {
+  user_id: string
+}
+
+export type AdminCreateUserResponse = {
+  user_id: string
+  created: boolean
+}
+
+export const postAdminCreateUser = async (
+  body: AdminCreateUserRequest,
+  options?: ApiCallOptions,
+): Promise<AdminCreateUserResponse> =>
+  apiRequest<AdminCreateUserResponse>({
+    baseUrl: options?.baseUrl,
+    headers: options?.headers,
+    path: "/v1/admin/users",
+    method: "POST",
+    jsonBody: body,
+  })
+
+export type AdminCreateAccountRequest = {
+  owner_user_id: string
+  currency: string
+  label: string
+}
+
+export type AdminCreateAccountResponse = {
+  account_id: string
+  status: string
+  currency: string
+  owner_user_id: string
+  created_at: string
+}
+
+export const postAdminCreateAccount = async (
+  body: AdminCreateAccountRequest,
+  options?: ApiCallOptions,
+): Promise<AdminCreateAccountResponse> =>
+  apiRequest<AdminCreateAccountResponse>({
+    baseUrl: options?.baseUrl,
+    headers: options?.headers,
+    path: "/v1/admin/accounts",
+    method: "POST",
+    jsonBody: body,
+  })
+
+export type AdminTopupRequest = {
+  user_id: string
+  currency: string
+  amount_minor: number
+}
+
+export const postAdminTopup = async (
+  body: AdminTopupRequest,
+  idempotencyKey: string,
+  options?: ApiCallOptions,
+): Promise<PostOpResponse> =>
+  apiRequest<PostOpResponse>({
+    baseUrl: options?.baseUrl,
+    headers: {
+      ...(options?.headers ?? {}),
+      "Idempotency-Key": idempotencyKey,
+    },
+    path: "/v1/admin/topup",
+    method: "POST",
+    jsonBody: body,
+  })

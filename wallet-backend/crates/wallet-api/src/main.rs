@@ -2,13 +2,35 @@ use tracing_subscriber::EnvFilter;
 
 use wallet_infra::{db as infra_db, dev as infra_dev};
 
+fn demo_seed_mode() -> bool {
+    match std::env::var("WALLET_DEV_SEED") {
+        Ok(v) if v == "1" => true,
+        Ok(v) if v == "0" => false,
+        _ => cfg!(debug_assertions),
+    }
+}
+
+fn remove_sqlite_files(path: &std::path::Path) -> std::io::Result<()> {
+    // SQLite WAL mode may create -wal / -shm siblings.
+    let _ = std::fs::remove_file(path);
+    let _ = std::fs::remove_file(path.with_extension(format!(
+        "{}-wal",
+        path.extension().and_then(|e| e.to_str()).unwrap_or("db")
+    )));
+    let _ = std::fs::remove_file(path.with_extension(format!(
+        "{}-shm",
+        path.extension().and_then(|e| e.to_str()).unwrap_or("db")
+    )));
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env().add_directive("info".parse()?))
         .init();
 
-    let dev_seed = infra_dev::dev_seed_enabled();
+    let dev_seed = demo_seed_mode();
     let db_file = if dev_seed {
         "wallet-dev.db"
     } else {
@@ -17,8 +39,10 @@ async fn main() -> anyhow::Result<()> {
 
     if dev_seed {
         let path = infra_db::db_path(db_file);
+        // Deterministic demo DB on every backend restart.
+        // Safe by construction: only affects wallet-dev.db.
         if path.exists() {
-            std::fs::remove_file(path)?;
+            remove_sqlite_files(&path)?;
         }
     }
 

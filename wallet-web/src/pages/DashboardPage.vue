@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue"
-import { RouterLink } from "vue-router"
 import { UAlert, UCard, UGrid, UGridItem, USpace, UText } from "@uzum-tech/ui"
 import { fetchHealth } from "../shared/api/endpoints"
 import { type ApiError } from "../shared/api/client"
@@ -50,7 +49,7 @@ onMounted(() => {
       <p class="page-subtitle">System overview and quick navigation.</p>
     </div>
 
-    <UGrid :cols="3" :x-gap="16" :y-gap="16">
+    <UGrid :cols="2" :x-gap="16" :y-gap="16">
       <UGridItem>
         <UCard title="Backend status">
           <USpace vertical :size="12">
@@ -89,24 +88,6 @@ onMounted(() => {
         </UCard>
       </UGridItem>
 
-      <UGridItem>
-        <UCard title="Quick actions">
-          <div class="links">
-            <RouterLink class="link-card" to="/wallet">
-              <div class="link-title">Wallet</div>
-              <div class="link-subtitle">Balances and transfers</div>
-            </RouterLink>
-            <RouterLink class="link-card" to="/receipt">
-              <div class="link-title">Receipt</div>
-              <div class="link-subtitle">Lookup by tx_id</div>
-            </RouterLink>
-            <RouterLink class="link-card" to="/admin">
-              <div class="link-title">Admin</div>
-              <div class="link-subtitle">User and account tools</div>
-            </RouterLink>
-          </div>
-        </UCard>
-      </UGridItem>
     </UGrid>
   </div>
 </template>
@@ -149,37 +130,6 @@ onMounted(() => {
   font-size: 12px;
   color: var(--text-muted);
   word-break: break-word;
-}
-
-.links {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-  margin-top: 8px;
-}
-
-.link-card {
-  display: block;
-  padding: 12px 12px;
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  text-decoration: none;
-}
-
-.link-card:hover {
-  border-color: rgba(112, 0, 255, 0.22);
-}
-
-.link-title {
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.link-subtitle {
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--text-muted);
 }
 
 .hint {
