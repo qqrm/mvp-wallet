@@ -9,7 +9,7 @@ use serde_json::json;
 
 use crate::{
     app::AppState,
-    auth::{AuthCtx, dev_no_auth_enabled, require_admin, require_user},
+    auth::{AuthCtx, require_admin, require_user},
     error::{ApiError, ApiResult},
 };
 
@@ -335,7 +335,7 @@ pub(crate) async fn wallet_transfer(
 #[utoipa::path(
     get,
     path = "/v1/dev/users",
-    description = "Dev-only endpoint (available when WALLET_DEV_NO_AUTH=1).",
+    description = "Dev-only endpoint (available on localhost).",
     responses(
         (status = 200, description = "User list", body = DevUsersResponse),
         (status = 401, description = "Unauthorized"),
@@ -346,9 +346,6 @@ pub(crate) async fn dev_users(
     State(st): State<AppState>,
     Extension(auth): Extension<AuthCtx>,
 ) -> ApiResult<Json<DevUsersResponse>> {
-    if !dev_no_auth_enabled() {
-        return Err(ApiError::NotFound("dev endpoint not available"));
-    }
     require_admin(&auth)?;
     let users = wallet_infra::dev::list_dev_users(&st.pool).await?;
     Ok(Json(DevUsersResponse { users }))
@@ -357,7 +354,7 @@ pub(crate) async fn dev_users(
 #[utoipa::path(
     get,
     path = "/v1/dev/users/{user_id}/accounts",
-    description = "Dev-only endpoint (available when WALLET_DEV_NO_AUTH=1).",
+    description = "Dev-only endpoint (available on localhost).",
     params(("user_id" = String, Path, description = "User ID")),
     responses(
         (status = 200, description = "User accounts", body = DevUserAccountsResponse),
@@ -371,9 +368,6 @@ pub(crate) async fn dev_user_accounts(
     Extension(auth): Extension<AuthCtx>,
     Path(user_id): Path<String>,
 ) -> ApiResult<Json<DevUserAccountsResponse>> {
-    if !dev_no_auth_enabled() {
-        return Err(ApiError::NotFound("dev endpoint not available"));
-    }
     require_admin(&auth)?;
     let user = UserId::parse(&user_id)?;
     let accounts = wallet_infra::dev::list_dev_user_accounts(&st.pool, &user).await?;

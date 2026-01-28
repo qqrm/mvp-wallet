@@ -101,6 +101,8 @@ All non-health endpoints require:
 
 Authorization: Bearer <token>
 
+Localhost requests (loopback IP or `Host: localhost`) bypass auth entirely and derive identity from `X-Dev-User` or `?as=` (default `u01`).
+
 
 ### 4.2 Admin
 - Token: `ADMIN_TOKEN` (env)

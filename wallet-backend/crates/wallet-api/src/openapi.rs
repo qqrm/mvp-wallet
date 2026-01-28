@@ -20,7 +20,7 @@ use wallet_app::{
     info(
         title = "wallet-backend",
         version = "0.1.0",
-        description = "Wallet MVP API (ledger + balances projection + RBAC). Dev endpoints under /v1/dev are available only when WALLET_DEV_NO_AUTH=1."
+        description = "Wallet MVP API (ledger + balances projection + RBAC). Dev endpoints under /v1/dev are available only on localhost."
     ),
     paths(
         crate::api::health,

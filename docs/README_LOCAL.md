@@ -8,13 +8,12 @@ Run from repo root.
 
 Linux/macOS:
 
-- Dev mode (no auth + seed demo data):
-  - `WALLET_DEV_NO_AUTH=1 WALLET_DEV_SEED=1 cargo run --manifest-path wallet-backend/Cargo.toml -p wallet-api`
+- Dev mode (seed demo data):
+  - `WALLET_DEV_SEED=1 cargo run --manifest-path wallet-backend/Cargo.toml -p wallet-api`
 
 Windows (PowerShell):
 
 ```powershell
-$env:WALLET_DEV_NO_AUTH = "1"
 $env:WALLET_DEV_SEED = "1"
 
 cargo run --manifest-path wallet-backend/Cargo.toml -p wallet-api
@@ -31,12 +30,11 @@ Demo state reset:
 - `WALLET_DEV_SEED=1` switches the DB file to `wallet-dev.db`, deletes it on each startup, runs migrations, and seeds deterministic demo data.
 - Without `WALLET_DEV_SEED`, the backend uses `wallet.db` and preserves state across restarts.
 
-Dev-no-auth behavior (`WALLET_DEV_NO_AUTH=1`):
+Localhost auth behavior:
 
-- `/v1/wallet/{user_id}/*` endpoints use the `{user_id}` path segment as the authenticated user.
-  - If `X-Dev-User` (or `?as=`) is provided and does not match the path user, the request returns `400` with a clear mismatch error.
-- User-scoped endpoints without a `user_id` path (e.g. `/v1/profile`, `/v1/accounts`) accept `X-Dev-User` or `?as=`. If absent, they default to `u01`.
-- Account-scoped endpoints (e.g. `/v1/accounts/{account_id}`) derive the user from the account owner. If `X-Dev-User` is provided and mismatches the owner, the request returns `400`.
+- Authentication is disabled on localhost (loopback IP or `Host: localhost`).
+- Identity comes only from `X-Dev-User` or `?as=`; if absent it defaults to `u01`.
+- `/v1/wallet/{user_id}/*` must match the selected user; mismatches return `400`.
 - `/v1/admin/*` and `/v1/dev/*` are treated as Admin automatically.
 
 ## Frontend (Vue)
@@ -50,12 +48,17 @@ Run from repo root.
 
 The web app expects the backend at `http://127.0.0.1:3000`.
 
+User switching:
+
+- `/wallet` defaults to `u01`.
+- `/wallet?as=u02` loads `u02` and sends `X-Dev-User: u02` on all requests.
+
 Dev endpoints for user/account discovery (for UI combobox/switcher):
 
 - `GET /v1/dev/users`
 - `GET /v1/dev/users/{user_id}/accounts`
 
-In dev-no-auth mode (`WALLET_DEV_NO_AUTH=1`) these endpoints are available without a token and the handlers are active. Outside dev mode they return `404` even for admin users.
+These endpoints are available only on localhost. Outside localhost they return `404` even for admin users.
 
 ## Local checks (no `just`)
 
