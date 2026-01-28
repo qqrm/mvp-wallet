@@ -1,44 +1,83 @@
 <script setup lang="ts">
-import { computed, h, ref } from "vue"
+import { computed, h, ref, watch } from "vue"
+import { useRoute, useRouter } from "vue-router"
 import {
   UCard,
   UDataTable,
   UGrid,
   UGridItem,
   UInput,
-  UInputNumber,
   USelect,
   USpace,
   UText,
 } from "@uzum-tech/ui"
 import CoralButton from "../shared/ui/CoralButton.vue"
+import { useSessionStore } from "../app/stores/session"
+import { useSettingsStore } from "../app/stores/settings"
+import { type ApiError } from "../shared/api/client"
+import {
+  fetchCurrencies,
+  fetchWalletBalances,
+  fetchWalletTxs,
+  postWalletTransfer,
+  type CurrencyItem,
+} from "../shared/api/endpoints"
 import { notifyError, notifySuccess } from "../shared/ui/notifications"
 
 type BalanceRow = {
   currency: string
-  available: number
-  reserved: number
+  availableMinor: bigint
+  reservedMinor: bigint
 }
 
 type TxRow = {
   id: string
   type: string
   currency: string
-  amount: number
+  amountMinor: bigint
   counterparty: string
   status: string
 }
 
-const balances = ref<BalanceRow[]>([
-  { currency: "UZS", available: 1_250_000, reserved: 40_000 },
-  { currency: "USD", available: 320.5, reserved: 0 },
-])
+const AUTH_TOKEN_KEY = "wallet-web.authToken"
+const DEFAULT_USER_ID = "u01"
+const I64_MAX = 9_223_372_036_854_775_807n
+const I64_MIN = -9_223_372_036_854_775_808n
+const JS_SAFE_MAX = BigInt(Number.MAX_SAFE_INTEGER)
+const JS_SAFE_MIN = -JS_SAFE_MAX
 
-const transactions = ref<TxRow[]>([
-  { id: "tx_9f1c...a2", type: "Transfer", currency: "UZS", amount: -120_000, counterparty: "user_0192", status: "Posted" },
-  { id: "tx_1a02...7b", type: "Topup", currency: "UZS", amount: 500_000, counterparty: "admin", status: "Posted" },
-  { id: "tx_77bd...11", type: "Transfer", currency: "USD", amount: -25.0, counterparty: "user_0041", status: "Pending" },
-])
+const settings = useSettingsStore()
+const session = useSessionStore()
+const route = useRoute()
+const router = useRouter()
+
+const authToken = ref<string | null>(null)
+if (typeof window !== "undefined") {
+  const storedToken = window.localStorage.getItem(AUTH_TOKEN_KEY)
+  if (storedToken?.trim()) authToken.value = storedToken.trim()
+}
+
+const balances = ref<BalanceRow[]>([])
+const transactions = ref<TxRow[]>([])
+const currencies = ref<CurrencyItem[]>([])
+const currentUserId = ref(DEFAULT_USER_ID)
+
+watch(
+  () => route.query.token,
+  (value) => {
+    if (typeof value !== "string") return
+    const trimmed = value.trim()
+    if (!trimmed) return
+    authToken.value = trimmed
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(AUTH_TOKEN_KEY, trimmed)
+    }
+    const nextQuery = { ...route.query }
+    delete nextQuery.token
+    void router.replace({ query: nextQuery })
+  },
+  { immediate: true },
+)
 
 const copyToClipboard = async (value: string) => {
   if (!value) return
@@ -65,6 +104,57 @@ const copyToClipboard = async (value: string) => {
       notifyError("Copy failed")
     }
   }
+}
+
+const numberFormatParts = new Intl.NumberFormat(undefined).formatToParts(1000.1)
+const GROUP_SEPARATOR = numberFormatParts.find((part) => part.type === "group")?.value ?? ","
+const DECIMAL_SEPARATOR = numberFormatParts.find((part) => part.type === "decimal")?.value ?? "."
+
+const groupDigits = (digits: string) => {
+  if (digits.length <= 3) return digits
+  const parts: string[] = []
+  for (let index = digits.length; index > 0; index -= 3) {
+    const start = Math.max(index - 3, 0)
+    parts.unshift(digits.slice(start, index))
+  }
+  return parts.join(GROUP_SEPARATOR)
+}
+
+const parseMinorAmount = (value: string, minorUnits: number): bigint | null => {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  if (trimmed.startsWith("-")) return null
+  if (!/^\d*\.?\d*$/.test(trimmed)) return null
+  if (trimmed === ".") return null
+  if (minorUnits === 0 && trimmed.includes(".")) return null
+
+  const [wholeRaw = "", fractionRaw = ""] = trimmed.split(".")
+  if (wholeRaw === "" && fractionRaw === "") return null
+  if (fractionRaw.length > minorUnits) return null
+
+  const whole = wholeRaw === "" ? "0" : wholeRaw
+  if (minorUnits === 0) return BigInt(whole)
+
+  const fraction = fractionRaw.padEnd(minorUnits, "0")
+  return BigInt(`${whole}${fraction}`)
+}
+
+const currencyMinorUnits = computed(() => new Map(currencies.value.map((item) => [item.code, item.minor_units])))
+const getMinorUnits = (currency: string) => currencyMinorUnits.value.get(currency) ?? 2
+
+const formatMinorAmount = (currency: string, minorValue: bigint) => {
+  const minorUnits = getMinorUnits(currency)
+  const isNegative = minorValue < 0n
+  const absValue = isNegative ? -minorValue : minorValue
+
+  if (minorUnits === 0) {
+    return `${isNegative ? "-" : ""}${groupDigits(absValue.toString())}`
+  }
+
+  const base = 10n ** BigInt(minorUnits)
+  const whole = absValue / base
+  const fraction = (absValue % base).toString().padStart(minorUnits, "0")
+  return `${isNegative ? "-" : ""}${groupDigits(whole.toString())}${DECIMAL_SEPARATOR}${fraction}`
 }
 
 const txColumns = [
@@ -98,47 +188,180 @@ const txColumns = [
   },
   { title: "Type", key: "type" },
   { title: "Currency", key: "currency" },
-  { title: "Amount", key: "amount" },
+  {
+    title: "Amount",
+    key: "amountMinor",
+    render: (row: TxRow) => formatMinorAmount(row.currency, row.amountMinor),
+  },
   { title: "Counterparty", key: "counterparty" },
   { title: "Status", key: "status" },
 ]
 
 const transferRecipientId = ref("")
 const transferCurrency = ref("UZS")
-const transferAmount = ref<number | null>(null)
+const transferAmount = ref("")
 
-const currencyOptions = [
-  { label: "UZS", value: "UZS" },
-  { label: "USD", value: "USD" },
-]
+const currencyOptions = computed(() => currencies.value.map((currency) => ({ label: currency.code, value: currency.code })))
+
+watch(
+  currencies,
+  (items) => {
+    if (!items.length) return
+    const first = items[0]
+    if (first && !items.some((item) => item.code === transferCurrency.value)) {
+      transferCurrency.value = first.code
+    }
+  },
+  { immediate: true },
+)
+
+const parsedTransferAmount = computed(() => parseMinorAmount(transferAmount.value, getMinorUnits(transferCurrency.value)))
 
 const canSend = computed(() => {
   const recipient = transferRecipientId.value.trim()
-  const amount = transferAmount.value
-  return recipient.length > 0 && typeof amount === "number" && amount > 0
+  const amount = parsedTransferAmount.value
+  return recipient.length > 0 && amount !== null && amount > 0n
 })
-
-const formatAmount = (currency: string, value: number) => {
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency,
-      maximumFractionDigits: currency === "UZS" ? 0 : 2,
-    }).format(value)
-  } catch {
-    return `${value} ${currency}`
-  }
-}
 
 const totalByCurrency = computed(() =>
   balances.value.map((b) => ({
     currency: b.currency,
-    total: b.available + b.reserved,
+    total: b.availableMinor + b.reservedMinor,
   })),
 )
 
-const handleSend = () => {
-  // UI demo only; wire to API when wallet transfers are ready.
+const sessionLabel = computed(() => (authToken.value ? "Token auth" : "Dev mode"))
+
+const buildHeaders = (userId: string, extra?: HeadersInit) => {
+  const headers = new Headers()
+  if (authToken.value) {
+    headers.set("Authorization", `Bearer ${authToken.value}`)
+  } else {
+    headers.set("X-Dev-User", userId)
+  }
+  if (extra) {
+    const extraHeaders = new Headers(extra)
+    extraHeaders.forEach((value, key) => headers.set(key, value))
+  }
+  return headers
+}
+
+watch(
+  () => route.query.as,
+  (value) => {
+    if (typeof value === "string" && value.trim()) {
+      currentUserId.value = value.trim()
+      return
+    }
+    currentUserId.value = DEFAULT_USER_ID
+  },
+  { immediate: true },
+)
+
+const resolveAuthError = (error: ApiError, fallbackMessage: string) => {
+  if ((error?.status === 401 || error?.status === 403) && !authToken.value) {
+    return "Backend requires dev-no-auth. Start backend with WALLET_DEV_NO_AUTH=1."
+  }
+  if (error?.status === 401 || error?.status === 403) {
+    return "Authorization failed. Check your token."
+  }
+  return error?.message ?? fallbackMessage
+}
+
+const loadWallet = async () => {
+  session.setLoading(true)
+  try {
+    const userId = currentUserId.value
+    const headers = buildHeaders(userId)
+
+    const currencyResponse = await fetchCurrencies(settings.apiBaseUrl, headers)
+    currencies.value = currencyResponse.items
+
+    const [balanceResponse, txResponse] = await Promise.all([
+      fetchWalletBalances(settings.apiBaseUrl, userId, headers),
+      fetchWalletTxs(settings.apiBaseUrl, userId, 50, headers),
+    ])
+
+    balances.value = balanceResponse.balances.map((item) => ({
+      currency: item.currency,
+      availableMinor: BigInt(item.available_minor),
+      reservedMinor: BigInt(item.hold_minor),
+    }))
+    transactions.value = txResponse.txs.map((item) => ({
+      id: item.tx_id,
+      type: item.tx_type,
+      currency: item.currency,
+      amountMinor: BigInt(item.amount_minor),
+      counterparty: item.description || "-",
+      status: item.state,
+    }))
+  } catch (error) {
+    notifyError(resolveAuthError(error as ApiError, "Unable to load wallet data."))
+  } finally {
+    session.setLoading(false)
+  }
+}
+
+watch(
+  [() => settings.apiBaseUrl, authToken, currentUserId],
+  ([nextBaseUrl], [prevBaseUrl]) => {
+    if (prevBaseUrl && nextBaseUrl !== prevBaseUrl) {
+      currencies.value = []
+    }
+    void loadWallet()
+  },
+  { immediate: true },
+)
+
+const handleSend = async () => {
+  const recipient = transferRecipientId.value.trim()
+  if (!recipient) {
+    notifyError("Recipient ID is required.")
+    return
+  }
+
+  const amountMinor = parsedTransferAmount.value
+  if (amountMinor === null) {
+    notifyError("Enter a valid amount.")
+    return
+  }
+  if (amountMinor <= 0n) {
+    notifyError("Amount must be greater than zero.")
+    return
+  }
+  if (amountMinor > I64_MAX || amountMinor < I64_MIN) {
+    notifyError("Amount is too large.")
+    return
+  }
+  if (amountMinor > JS_SAFE_MAX || amountMinor < JS_SAFE_MIN) {
+    notifyError("Amount is too large.")
+    return
+  }
+  const amountNumber = Number(amountMinor)
+
+  const userId = currentUserId.value
+  session.setLoading(true)
+  try {
+    const idemKey = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`
+    await postWalletTransfer(
+      settings.apiBaseUrl,
+      userId,
+      {
+        to_user_id: recipient,
+        currency: transferCurrency.value,
+        amount_minor: amountNumber,
+      },
+      buildHeaders(userId, { "Idempotency-Key": idemKey }),
+    )
+    notifySuccess("Transfer submitted.")
+    transferRecipientId.value = ""
+    transferAmount.value = ""
+    await loadWallet()
+  } catch (error) {
+    notifyError(resolveAuthError(error as ApiError, "Transfer failed."))
+  } finally {
+    session.setLoading(false)
+  }
 }
 </script>
 
@@ -151,9 +374,16 @@ const handleSend = () => {
       </div>
 
       <div class="wallet-totals">
+        <div class="total-pill user-pill">
+          <span class="total-currency">User</span>
+          <span class="total-value">{{ currentUserId }}</span>
+        </div>
+        <CoralButton class="refresh-btn" :disabled="session.isLoading" test-id="wallet-refresh" @click="loadWallet">
+          Refresh
+        </CoralButton>
         <div v-for="row in totalByCurrency" :key="row.currency" class="total-pill">
           <span class="total-currency">{{ row.currency }}</span>
-          <span class="total-value">{{ formatAmount(row.currency, row.total) }}</span>
+          <span class="total-value">{{ formatMinorAmount(row.currency, row.total) }}</span>
         </div>
       </div>
     </div>
@@ -169,16 +399,16 @@ const handleSend = () => {
                   <div class="balance-badge">Active</div>
                 </div>
 
-                <div class="balance-amount">{{ formatAmount(b.currency, b.available) }}</div>
+                <div class="balance-amount">{{ formatMinorAmount(b.currency, b.availableMinor) }}</div>
 
                 <div class="balance-meta">
                   <div class="meta-item">
                     <div class="meta-key">Reserved</div>
-                    <div class="meta-value">{{ formatAmount(b.currency, b.reserved) }}</div>
+                    <div class="meta-value">{{ formatMinorAmount(b.currency, b.reservedMinor) }}</div>
                   </div>
                   <div class="meta-item">
                     <div class="meta-key">Total</div>
-                    <div class="meta-value">{{ formatAmount(b.currency, b.available + b.reserved) }}</div>
+                    <div class="meta-value">{{ formatMinorAmount(b.currency, b.availableMinor + b.reservedMinor) }}</div>
                   </div>
                 </div>
               </div>
@@ -187,7 +417,7 @@ const handleSend = () => {
         </UCard>
 
         <UCard title="Recent transactions" class="mt16">
-          <UText depth="3" class="muted">Demo data. Replace with API-backed history when ready.</UText>
+          <UText depth="3" class="muted">Latest activity from your wallet.</UText>
           <div class="mt12">
             <UDataTable :columns="txColumns" :data="transactions" />
           </div>
@@ -199,7 +429,7 @@ const handleSend = () => {
           <USpace vertical :size="12">
             <UInput v-model:value="transferRecipientId" placeholder="Recipient ID" />
             <USelect :options="currencyOptions" v-model:value="transferCurrency" />
-            <UInputNumber v-model:value="transferAmount" placeholder="Amount" />
+            <UInput v-model:value="transferAmount" placeholder="Amount" />
             <div class="actions-row">
               <CoralButton :disabled="!canSend" test-id="wallet-send" @click="handleSend">Send</CoralButton>
             </div>
@@ -210,7 +440,7 @@ const handleSend = () => {
           <div class="kv">
             <div class="kv-row">
               <div class="kv-key">Session</div>
-              <div class="kv-value">Local demo</div>
+              <div class="kv-value">{{ sessionLabel }}</div>
             </div>
             <div class="kv-row">
               <div class="kv-key">2FA</div>
@@ -252,6 +482,14 @@ const handleSend = () => {
   border-radius: 999px;
   border: 1px solid var(--border);
   background: var(--surface-2);
+}
+
+.user-pill {
+  align-items: center;
+}
+
+.refresh-btn {
+  align-self: center;
 }
 
 .total-currency {
