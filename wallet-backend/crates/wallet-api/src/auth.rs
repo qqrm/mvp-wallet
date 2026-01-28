@@ -22,10 +22,7 @@ pub struct AuthCtx {
     pub user_id: Option<UserId>,
 }
 
-#[derive(Debug, Clone)]
-pub struct DevSelectedUser(pub UserId);
-
-fn dev_no_auth_enabled() -> bool {
+pub(crate) fn dev_no_auth_enabled() -> bool {
     matches!(std::env::var("WALLET_DEV_NO_AUTH"), Ok(v) if v == "1")
 }
 
@@ -65,49 +62,82 @@ async fn dev_user_from_currency_account(pool: &SqlitePool, account_id: i64) -> O
     UserId::parse(&owner).ok()
 }
 
-async fn dev_auth_ctx(st: &AppState, path: &str, selected_user: Option<UserId>) -> AuthCtx {
+fn dev_wallet_user_from_path(path: &str) -> ApiResult<Option<UserId>> {
+    let Some(rest) = path.strip_prefix("/v1/wallet/") else {
+        return Ok(None);
+    };
+    let user_id = rest.split('/').next().unwrap_or("");
+    if user_id.is_empty() {
+        return Ok(None);
+    }
+    let user = UserId::parse(user_id).map_err(|_| ApiError::BadRequest("invalid user_id"))?;
+    Ok(Some(user))
+}
+
+fn dev_account_id_from_path(path: &str) -> Option<i64> {
+    let rest = path.strip_prefix("/v1/accounts/")?;
+    let raw = rest.split('/').next().unwrap_or("").trim();
+    if raw.is_empty() {
+        return None;
+    }
+    let raw = raw.strip_prefix("acc_").unwrap_or(raw);
+    raw.parse::<i64>().ok()
+}
+
+async fn dev_auth_ctx(
+    st: &AppState,
+    path: &str,
+    selected_user: Option<UserId>,
+) -> ApiResult<AuthCtx> {
     if path.starts_with("/v1/admin") || path.starts_with("/v1/dev") {
-        return AuthCtx {
+        return Ok(AuthCtx {
             role: Role::Admin,
             user_id: None,
-        };
+        });
+    }
+
+    if let Some(user_id) = dev_wallet_user_from_path(path)? {
+        if let Some(selected) = selected_user
+            && selected != user_id
+        {
+            return Err(ApiError::BadRequest(
+                "dev user mismatch: path user_id vs selected",
+            ));
+        }
+        return Ok(AuthCtx {
+            role: Role::User,
+            user_id: Some(user_id),
+        });
+    }
+
+    if let Some(account_id) = dev_account_id_from_path(path)
+        && let Some(user_id) = dev_user_from_currency_account(&st.pool, account_id).await
+    {
+        if let Some(selected) = selected_user
+            && selected != user_id
+        {
+            return Err(ApiError::BadRequest(
+                "dev user mismatch: account owner vs selected",
+            ));
+        }
+        return Ok(AuthCtx {
+            role: Role::User,
+            user_id: Some(user_id),
+        });
     }
 
     if let Some(user_id) = selected_user {
-        return AuthCtx {
+        return Ok(AuthCtx {
             role: Role::User,
             user_id: Some(user_id),
-        };
-    }
-
-    if let Some(rest) = path.strip_prefix("/v1/wallet/") {
-        let user_id = rest.split('/').next().unwrap_or("");
-        if let Ok(user_id) = UserId::parse(user_id) {
-            return AuthCtx {
-                role: Role::User,
-                user_id: Some(user_id),
-            };
-        }
-    }
-
-    if let Some(rest) = path.strip_prefix("/v1/accounts/") {
-        let account_id_raw = rest.split('/').next().unwrap_or("");
-        let account_id_raw = account_id_raw.trim_start_matches("acc_");
-        if let Ok(account_id) = account_id_raw.parse::<i64>()
-            && let Some(user_id) = dev_user_from_currency_account(&st.pool, account_id).await
-        {
-            return AuthCtx {
-                role: Role::User,
-                user_id: Some(user_id),
-            };
-        }
+        });
     }
 
     let fallback = UserId::parse("u01").expect("dev fallback user id");
-    AuthCtx {
+    Ok(AuthCtx {
         role: Role::User,
         user_id: Some(fallback),
-    }
+    })
 }
 
 /// Simple MVP auth:
@@ -133,12 +163,13 @@ pub async fn auth_middleware(
         return Ok(next.run(req).await);
     }
 
+    if !dev_no_auth_enabled() && path.starts_with("/v1/dev") {
+        return Err(ApiError::NotFound("dev endpoint not available"));
+    }
+
     if dev_no_auth_enabled() {
         let selected_user = dev_user_from_header(&req).or_else(|| dev_user_from_query(&req));
-        if let Some(user_id) = selected_user.clone() {
-            req.extensions_mut().insert(DevSelectedUser(user_id));
-        }
-        let ctx = dev_auth_ctx(&st, &path, selected_user).await;
+        let ctx = dev_auth_ctx(&st, &path, selected_user).await?;
         req.extensions_mut().insert(ctx);
         return Ok(next.run(req).await);
     }

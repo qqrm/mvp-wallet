@@ -28,10 +28,16 @@ Swagger UI:
 
 Demo state reset:
 
-- Current behavior: `wallet.db` persists across restarts.
-  - To reset manually: stop the service and delete `wallet-backend/wallet.db` (also `wallet.db-wal` and `wallet.db-shm` if present).
-- Target behavior (decision): on every start in demo mode the backend replaces the current DB with a template snapshot.
-  - See `wallet-backend/docs/decisions/0003-demo-db-reset-on-startup.md`.
+- `WALLET_DEV_SEED=1` switches the DB file to `wallet-dev.db`, deletes it on each startup, runs migrations, and seeds deterministic demo data.
+- Without `WALLET_DEV_SEED`, the backend uses `wallet.db` and preserves state across restarts.
+
+Dev-no-auth behavior (`WALLET_DEV_NO_AUTH=1`):
+
+- `/v1/wallet/{user_id}/*` endpoints use the `{user_id}` path segment as the authenticated user.
+  - If `X-Dev-User` (or `?as=`) is provided and does not match the path user, the request returns `400` with a clear mismatch error.
+- User-scoped endpoints without a `user_id` path (e.g. `/v1/profile`, `/v1/accounts`) accept `X-Dev-User` or `?as=`. If absent, they default to `u01`.
+- Account-scoped endpoints (e.g. `/v1/accounts/{account_id}`) derive the user from the account owner. If `X-Dev-User` is provided and mismatches the owner, the request returns `400`.
+- `/v1/admin/*` and `/v1/dev/*` are treated as Admin automatically.
 
 ## Frontend (Vue)
 
@@ -49,7 +55,7 @@ Dev endpoints for user/account discovery (for UI combobox/switcher):
 - `GET /v1/dev/users`
 - `GET /v1/dev/users/{user_id}/accounts`
 
-In dev-no-auth mode (`WALLET_DEV_NO_AUTH=1`) these endpoints are available without a token. Outside dev mode they require admin auth.
+In dev-no-auth mode (`WALLET_DEV_NO_AUTH=1`) these endpoints are available without a token and the handlers are active. Outside dev mode they return `404` even for admin users.
 
 ## Local checks (no `just`)
 
