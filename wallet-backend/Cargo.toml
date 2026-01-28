@@ -33,6 +33,7 @@ anyhow = "1.0.100"
 hmac = "0.12"
 sha2 = "0.10"
 base64 = "0.22"
+percent-encoding = "2.3"
 
 # OpenAPI / Swagger UI
 utoipa = { version = "5.4", features = ["axum_extras"] }

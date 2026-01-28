@@ -9,7 +9,7 @@ use serde_json::json;
 
 use crate::{
     app::AppState,
-    auth::{AuthCtx, require_admin, require_user},
+    auth::{AuthCtx, DevSelectedUser, require_admin, require_user},
     error::{ApiError, ApiResult},
 };
 
@@ -246,15 +246,20 @@ pub(crate) async fn v33_account_transactions(
 pub(crate) async fn wallet_balances(
     State(st): State<AppState>,
     Extension(auth): Extension<AuthCtx>,
+    dev_user: Option<Extension<DevSelectedUser>>,
     Path(user_id): Path<String>,
 ) -> ApiResult<Json<ListBalancesResponse>> {
     let user = UserId::parse(&user_id)?;
     let authed = require_user(&auth)?;
-    if authed.as_str() != user.as_str() {
+    let effective_user = dev_user
+        .as_ref()
+        .map(|u| u.0.0.clone())
+        .unwrap_or_else(|| authed.clone());
+    if dev_user.is_none() && authed.as_str() != user.as_str() {
         return Err(ApiError::Forbidden("cannot access other user"));
     }
 
-    let items = service::list_balances(&st.pool, &user).await?;
+    let items = service::list_balances(&st.pool, &effective_user).await?;
     Ok(Json(ListBalancesResponse { balances: items }))
 }
 
@@ -274,17 +279,22 @@ pub(crate) async fn wallet_balances(
 pub(crate) async fn wallet_txs(
     State(st): State<AppState>,
     Extension(auth): Extension<AuthCtx>,
+    dev_user: Option<Extension<DevSelectedUser>>,
     Path(user_id): Path<String>,
     Query(q): Query<ListTxsQuery>,
 ) -> ApiResult<Json<ListTxsResponse>> {
     let user = UserId::parse(&user_id)?;
     let authed = require_user(&auth)?;
-    if authed.as_str() != user.as_str() {
+    let effective_user = dev_user
+        .as_ref()
+        .map(|u| u.0.0.clone())
+        .unwrap_or_else(|| authed.clone());
+    if dev_user.is_none() && authed.as_str() != user.as_str() {
         return Err(ApiError::Forbidden("cannot access other user"));
     }
 
     let limit = q.limit.unwrap_or(50).min(200);
-    let items = service::list_txs(&st.pool, &user, limit).await?;
+    let items = service::list_txs(&st.pool, &effective_user, limit).await?;
 
     Ok(Json(ListTxsResponse { txs: items }))
 }
@@ -305,6 +315,7 @@ pub(crate) async fn wallet_txs(
 pub(crate) async fn wallet_transfer(
     State(st): State<AppState>,
     Extension(auth): Extension<AuthCtx>,
+    dev_user: Option<Extension<DevSelectedUser>>,
     Path(user_id): Path<String>,
     OriginalUri(uri): OriginalUri,
     headers: HeaderMap,
@@ -312,19 +323,24 @@ pub(crate) async fn wallet_transfer(
 ) -> ApiResult<Response> {
     let user = UserId::parse(&user_id)?;
     let authed = require_user(&auth)?;
-    if authed.as_str() != user.as_str() {
+    let effective_user = dev_user
+        .as_ref()
+        .map(|u| u.0.0.clone())
+        .unwrap_or_else(|| authed.clone());
+    if dev_user.is_none() && authed.as_str() != user.as_str() {
         return Err(ApiError::Forbidden("cannot access other user"));
     }
 
     let idem = parse_idempotency(&headers)?;
     let body_value =
         serde_json::to_value(&body).map_err(|_| ApiError::Internal("invalid request body"))?;
-    let scope = format!("user:{}:transfer", user.as_str());
-    let request_hash = idempotency_http::request_hash(&body_value, uri.path(), user.as_str());
+    let scope = format!("user:{}:transfer", effective_user.as_str());
+    let request_hash =
+        idempotency_http::request_hash(&body_value, uri.path(), effective_user.as_str());
     let req = body.try_into()?;
 
     let idem_key = idem.clone();
-    let user_id = user.clone();
+    let user_id = effective_user.clone();
     let res = idempotency_http::execute(&st.pool, &scope, &idem, &request_hash, |tx| {
         Box::pin(async move { service::transfer_posted(tx, &user_id, &idem_key, req).await })
     })

@@ -1,6 +1,7 @@
 use axum::{body::Body, extract::State, http::Request, middleware::Next, response::Response};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use hmac::{Hmac, Mac};
+use percent_encoding::percent_decode_str;
 use sha2::Sha256;
 use sqlx::SqlitePool;
 
@@ -21,6 +22,9 @@ pub struct AuthCtx {
     pub user_id: Option<UserId>,
 }
 
+#[derive(Debug, Clone)]
+pub struct DevSelectedUser(pub UserId);
+
 fn dev_no_auth_enabled() -> bool {
     matches!(std::env::var("WALLET_DEV_NO_AUTH"), Ok(v) if v == "1")
 }
@@ -40,48 +44,12 @@ fn dev_user_from_query(req: &Request<Body>) -> Option<UserId> {
         }
         let value = iter.next().unwrap_or("");
         let value = value.replace('+', " ");
-        let decoded = percent_decode(&value);
-        if let Ok(user) = UserId::parse(decoded.as_str()) {
+        let decoded = percent_decode_str(&value).decode_utf8().ok()?;
+        if let Ok(user) = UserId::parse(decoded.as_ref()) {
             return Some(user);
         }
     }
     None
-}
-
-fn percent_decode(value: &str) -> String {
-    let mut out = String::with_capacity(value.len());
-    let mut chars = value.as_bytes().iter().copied();
-    while let Some(b) = chars.next() {
-        if b == b'%' {
-            let hi = chars.next();
-            let lo = chars.next();
-            if let (Some(hi), Some(lo)) = (hi, lo)
-                && let (Some(hi), Some(lo)) = (hex_value(hi), hex_value(lo))
-            {
-                out.push((hi << 4 | lo) as char);
-                continue;
-            }
-            out.push('%');
-            if let Some(hi) = hi {
-                out.push(hi as char);
-            }
-            if let Some(lo) = lo {
-                out.push(lo as char);
-            }
-        } else {
-            out.push(b as char);
-        }
-    }
-    out
-}
-
-fn hex_value(b: u8) -> Option<u8> {
-    match b {
-        b'0'..=b'9' => Some(b - b'0'),
-        b'a'..=b'f' => Some(b - b'a' + 10),
-        b'A'..=b'F' => Some(b - b'A' + 10),
-        _ => None,
-    }
 }
 
 async fn dev_user_from_currency_account(pool: &SqlitePool, account_id: i64) -> Option<UserId> {
@@ -156,7 +124,7 @@ pub async fn auth_middleware(
     next: Next,
 ) -> Result<Response, ApiError> {
     // Public endpoints.
-    let path = req.uri().path();
+    let path = req.uri().path().to_string();
     if path == "/health"
         || path == "/api-doc/openapi.json"
         || path.starts_with("/swagger-ui")
@@ -167,7 +135,10 @@ pub async fn auth_middleware(
 
     if dev_no_auth_enabled() {
         let selected_user = dev_user_from_header(&req).or_else(|| dev_user_from_query(&req));
-        let ctx = dev_auth_ctx(&st, path, selected_user).await;
+        if let Some(user_id) = selected_user.clone() {
+            req.extensions_mut().insert(DevSelectedUser(user_id));
+        }
+        let ctx = dev_auth_ctx(&st, &path, selected_user).await;
         req.extensions_mut().insert(ctx);
         return Ok(next.run(req).await);
     }

@@ -2269,6 +2269,7 @@ dependencies = [
  "bytes",
  "hmac",
  "http-body-util",
+ "percent-encoding",
  "proptest",
  "serde",
  "serde_json",
