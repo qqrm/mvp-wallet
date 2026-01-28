@@ -4,9 +4,10 @@ use wallet_app::{
     AdminCloseAccountResponse, AdminCreateAccountRequest, AdminCreateAccountResponse,
     AdminCreateUserRequest, AdminCreateUserResponse, AdminHoldRequest,
     AdminOpenCurrencyAccountRequest, AdminOpenCurrencyAccountResponse, AdminTopupRequest,
-    BalanceItem, CurrencyItem, ListBalancesResponse, ListCurrenciesResponse, ListTxsQuery,
-    ListTxsResponse, PostOpResponse, RefundResponse, TopupRequest, TransferRequest, TxItem,
-    TxReceiptEntryItem, TxReceiptResponse,
+    BalanceItem, CurrencyItem, DevAccountItem, DevUserAccountsResponse, DevUserItem,
+    DevUsersResponse, ListBalancesResponse, ListCurrenciesResponse, ListTxsQuery, ListTxsResponse,
+    PostOpResponse, RefundResponse, TopupRequest, TransferRequest, TxItem, TxReceiptEntryItem,
+    TxReceiptResponse,
 };
 
 /// OpenAPI document for the MVP.
@@ -19,7 +20,7 @@ use wallet_app::{
     info(
         title = "wallet-backend",
         version = "0.1.0",
-        description = "Wallet MVP API (ledger + balances projection + RBAC)."
+        description = "Wallet MVP API (ledger + balances projection + RBAC). Dev endpoints under /v1/dev are available only when WALLET_DEV_NO_AUTH=1."
     ),
     paths(
         crate::api::health,
@@ -39,6 +40,8 @@ use wallet_app::{
         crate::api::admin_payment_refund,
         crate::api::admin_user_balances,
         crate::api::admin_user_txs,
+        crate::api::dev_users,
+        crate::api::dev_user_accounts,
     ),
     components(schemas(
         BalanceItem,
@@ -63,6 +66,10 @@ use wallet_app::{
         ListTxsResponse,
         PostOpResponse,
         RefundResponse,
+        DevUserItem,
+        DevUsersResponse,
+        DevAccountItem,
+        DevUserAccountsResponse,
     ))
 )]
 pub struct ApiDoc;

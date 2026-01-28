@@ -9,7 +9,7 @@ use serde_json::json;
 
 use crate::{
     app::AppState,
-    auth::{AuthCtx, DevSelectedUser, require_admin, require_user},
+    auth::{AuthCtx, dev_no_auth_enabled, require_admin, require_user},
     error::{ApiError, ApiResult},
 };
 
@@ -22,7 +22,7 @@ use wallet_infra::{
 };
 
 pub fn routes() -> Router<AppState> {
-    let mut router = Router::new()
+    Router::new()
         .route("/health", get(health))
         .route("/v1/currencies", get(currencies_list))
         .route("/v1/transactions/{tx_id}", get(tx_receipt))
@@ -64,19 +64,9 @@ pub fn routes() -> Router<AppState> {
             "/v1/admin/users/{user_id}/balances",
             get(admin_user_balances),
         )
-        .route("/v1/admin/users/{user_id}/txs", get(admin_user_txs));
-
-    if dev_routes_enabled() {
-        router = router
-            .route("/v1/dev/users", get(dev_users))
-            .route("/v1/dev/users/{user_id}/accounts", get(dev_user_accounts));
-    }
-
-    router
-}
-
-fn dev_routes_enabled() -> bool {
-    matches!(std::env::var("WALLET_DEV_NO_AUTH"), Ok(v) if v == "1")
+        .route("/v1/admin/users/{user_id}/txs", get(admin_user_txs))
+        .route("/v1/dev/users", get(dev_users))
+        .route("/v1/dev/users/{user_id}/accounts", get(dev_user_accounts))
 }
 
 #[utoipa::path(
@@ -246,20 +236,15 @@ pub(crate) async fn v33_account_transactions(
 pub(crate) async fn wallet_balances(
     State(st): State<AppState>,
     Extension(auth): Extension<AuthCtx>,
-    dev_user: Option<Extension<DevSelectedUser>>,
     Path(user_id): Path<String>,
 ) -> ApiResult<Json<ListBalancesResponse>> {
     let user = UserId::parse(&user_id)?;
     let authed = require_user(&auth)?;
-    let effective_user = dev_user
-        .as_ref()
-        .map(|u| u.0.0.clone())
-        .unwrap_or_else(|| authed.clone());
-    if dev_user.is_none() && authed.as_str() != user.as_str() {
+    if authed.as_str() != user.as_str() {
         return Err(ApiError::Forbidden("cannot access other user"));
     }
 
-    let items = service::list_balances(&st.pool, &effective_user).await?;
+    let items = service::list_balances(&st.pool, &user).await?;
     Ok(Json(ListBalancesResponse { balances: items }))
 }
 
@@ -279,22 +264,17 @@ pub(crate) async fn wallet_balances(
 pub(crate) async fn wallet_txs(
     State(st): State<AppState>,
     Extension(auth): Extension<AuthCtx>,
-    dev_user: Option<Extension<DevSelectedUser>>,
     Path(user_id): Path<String>,
     Query(q): Query<ListTxsQuery>,
 ) -> ApiResult<Json<ListTxsResponse>> {
     let user = UserId::parse(&user_id)?;
     let authed = require_user(&auth)?;
-    let effective_user = dev_user
-        .as_ref()
-        .map(|u| u.0.0.clone())
-        .unwrap_or_else(|| authed.clone());
-    if dev_user.is_none() && authed.as_str() != user.as_str() {
+    if authed.as_str() != user.as_str() {
         return Err(ApiError::Forbidden("cannot access other user"));
     }
 
     let limit = q.limit.unwrap_or(50).min(200);
-    let items = service::list_txs(&st.pool, &effective_user, limit).await?;
+    let items = service::list_txs(&st.pool, &user, limit).await?;
 
     Ok(Json(ListTxsResponse { txs: items }))
 }
@@ -315,7 +295,6 @@ pub(crate) async fn wallet_txs(
 pub(crate) async fn wallet_transfer(
     State(st): State<AppState>,
     Extension(auth): Extension<AuthCtx>,
-    dev_user: Option<Extension<DevSelectedUser>>,
     Path(user_id): Path<String>,
     OriginalUri(uri): OriginalUri,
     headers: HeaderMap,
@@ -323,24 +302,19 @@ pub(crate) async fn wallet_transfer(
 ) -> ApiResult<Response> {
     let user = UserId::parse(&user_id)?;
     let authed = require_user(&auth)?;
-    let effective_user = dev_user
-        .as_ref()
-        .map(|u| u.0.0.clone())
-        .unwrap_or_else(|| authed.clone());
-    if dev_user.is_none() && authed.as_str() != user.as_str() {
+    if authed.as_str() != user.as_str() {
         return Err(ApiError::Forbidden("cannot access other user"));
     }
 
     let idem = parse_idempotency(&headers)?;
     let body_value =
         serde_json::to_value(&body).map_err(|_| ApiError::Internal("invalid request body"))?;
-    let scope = format!("user:{}:transfer", effective_user.as_str());
-    let request_hash =
-        idempotency_http::request_hash(&body_value, uri.path(), effective_user.as_str());
+    let scope = format!("user:{}:transfer", user.as_str());
+    let request_hash = idempotency_http::request_hash(&body_value, uri.path(), user.as_str());
     let req = body.try_into()?;
 
     let idem_key = idem.clone();
-    let user_id = effective_user.clone();
+    let user_id = user.clone();
     let res = idempotency_http::execute(&st.pool, &scope, &idem, &request_hash, |tx| {
         Box::pin(async move { service::transfer_posted(tx, &user_id, &idem_key, req).await })
     })
@@ -358,6 +332,7 @@ pub(crate) async fn wallet_transfer(
 #[utoipa::path(
     get,
     path = "/v1/dev/users",
+    description = "Dev-only endpoint (available when WALLET_DEV_NO_AUTH=1).",
     responses(
         (status = 200, description = "User list", body = DevUsersResponse),
         (status = 401, description = "Unauthorized"),
@@ -368,6 +343,9 @@ pub(crate) async fn dev_users(
     State(st): State<AppState>,
     Extension(auth): Extension<AuthCtx>,
 ) -> ApiResult<Json<DevUsersResponse>> {
+    if !dev_no_auth_enabled() {
+        return Err(ApiError::NotFound("dev endpoint not available"));
+    }
     require_admin(&auth)?;
     let users = wallet_infra::dev::list_dev_users(&st.pool).await?;
     Ok(Json(DevUsersResponse { users }))
@@ -376,6 +354,7 @@ pub(crate) async fn dev_users(
 #[utoipa::path(
     get,
     path = "/v1/dev/users/{user_id}/accounts",
+    description = "Dev-only endpoint (available when WALLET_DEV_NO_AUTH=1).",
     params(("user_id" = String, Path, description = "User ID")),
     responses(
         (status = 200, description = "User accounts", body = DevUserAccountsResponse),
@@ -389,6 +368,9 @@ pub(crate) async fn dev_user_accounts(
     Extension(auth): Extension<AuthCtx>,
     Path(user_id): Path<String>,
 ) -> ApiResult<Json<DevUserAccountsResponse>> {
+    if !dev_no_auth_enabled() {
+        return Err(ApiError::NotFound("dev endpoint not available"));
+    }
     require_admin(&auth)?;
     let user = UserId::parse(&user_id)?;
     let accounts = wallet_infra::dev::list_dev_user_accounts(&st.pool, &user).await?;
