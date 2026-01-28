@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, h, ref, watch } from "vue"
-import { useRoute, useRouter } from "vue-router"
+import { useRoute } from "vue-router"
 import { UCard, UDataTable, UGrid, UGridItem, UInput, USelect, USpace, UText } from "@uzum-tech/ui"
 import CoralButton from "../shared/ui/CoralButton.vue"
 import { useSessionStore } from "../app/stores/session"
@@ -30,7 +30,6 @@ type TxRow = {
   status: string
 }
 
-const AUTH_TOKEN_KEY = "wallet-web.authToken"
 const DEFAULT_USER_ID = "u01"
 
 const I64_MAX = 9_223_372_036_854_775_807n
@@ -41,35 +40,11 @@ const JS_SAFE_MIN = -JS_SAFE_MAX
 const settings = useSettingsStore()
 const session = useSessionStore()
 const route = useRoute()
-const router = useRouter()
-
-const authToken = ref<string | null>(null)
-if (typeof window !== "undefined") {
-  const storedToken = window.localStorage.getItem(AUTH_TOKEN_KEY)
-  if (storedToken?.trim()) authToken.value = storedToken.trim()
-}
 
 const balances = ref<BalanceRow[]>([])
 const transactions = ref<TxRow[]>([])
 const currencies = ref<CurrencyItem[]>([])
 const currentUserId = ref(DEFAULT_USER_ID)
-
-watch(
-  () => route.query.token,
-  (value) => {
-    if (typeof value !== "string") return
-    const trimmed = value.trim()
-    if (!trimmed) return
-    authToken.value = trimmed
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(AUTH_TOKEN_KEY, trimmed)
-    }
-    const nextQuery = { ...route.query }
-    delete nextQuery.token
-    void router.replace({ query: nextQuery })
-  },
-  { immediate: true },
-)
 
 watch(
   () => route.query.as,
@@ -164,15 +139,9 @@ const formatMinorAmount = (currency: string, minorValue: bigint) => {
   return `${isNegative ? "-" : ""}${groupDigits(whole.toString())}${DECIMAL_SEPARATOR}${fraction}`
 }
 
-const sessionLabel = computed(() => (authToken.value ? "Token auth" : "Dev mode"))
-
 const buildHeaders = (userId: string, extra?: HeadersInit) => {
   const headers = new Headers()
-  if (authToken.value) {
-    headers.set("Authorization", `Bearer ${authToken.value}`)
-  } else {
-    headers.set("X-Dev-User", userId)
-  }
+  headers.set("X-Dev-User", userId)
   if (extra) {
     const extraHeaders = new Headers(extra)
     extraHeaders.forEach((value, key) => headers.set(key, value))
@@ -181,11 +150,8 @@ const buildHeaders = (userId: string, extra?: HeadersInit) => {
 }
 
 const resolveAuthError = (error: ApiError, fallbackMessage: string) => {
-  if ((error?.status === 401 || error?.status === 403) && !authToken.value) {
-    return "Backend requires dev-no-auth. Start backend with WALLET_DEV_NO_AUTH=1."
-  }
   if (error?.status === 401 || error?.status === 403) {
-    return "Authorization failed. Check your token."
+    return "Request rejected. This UI expects localhost dev auth."
   }
   return error?.message ?? fallbackMessage
 }
@@ -295,12 +261,12 @@ const loadWallet = async () => {
     const userId = currentUserId.value
     const headers = buildHeaders(userId)
 
-    const currencyResponse = await fetchCurrencies(settings.apiBaseUrl, headers)
+    const currencyResponse = await fetchCurrencies({ baseUrl: settings.apiBaseUrl, headers })
     currencies.value = currencyResponse.items
 
     const [balanceResponse, txResponse] = await Promise.all([
-      fetchWalletBalances(settings.apiBaseUrl, userId, headers),
-      fetchWalletTxs(settings.apiBaseUrl, userId, 50, headers),
+      fetchWalletBalances(userId, { baseUrl: settings.apiBaseUrl, headers }),
+      fetchWalletTxs(userId, 50, { baseUrl: settings.apiBaseUrl, headers }),
     ])
 
     balances.value = balanceResponse.balances.map((item) => ({
@@ -324,7 +290,7 @@ const loadWallet = async () => {
 }
 
 watch(
-  [() => settings.apiBaseUrl, authToken, currentUserId],
+  [() => settings.apiBaseUrl, currentUserId],
   ([nextBaseUrl], [prevBaseUrl]) => {
     if (prevBaseUrl && nextBaseUrl !== prevBaseUrl) {
       currencies.value = []
@@ -374,14 +340,16 @@ const handleSend = async () => {
   try {
     const idemKey = buildIdempotencyKey()
     await postWalletTransfer(
-      settings.apiBaseUrl,
       userId,
       {
         to_user_id: recipient,
         currency: transferCurrency.value,
         amount_minor: amountNumber,
       },
-      buildHeaders(userId, { "Idempotency-Key": idemKey }),
+      {
+        baseUrl: settings.apiBaseUrl,
+        headers: buildHeaders(userId, { "Idempotency-Key": idemKey }),
+      },
     )
     notifySuccess("Transfer submitted.")
     transferRecipientId.value = ""
@@ -471,8 +439,8 @@ const handleSend = async () => {
         <UCard title="Security" class="mt16">
           <div class="kv">
             <div class="kv-row">
-              <div class="kv-key">Session</div>
-              <div class="kv-value">{{ sessionLabel }}</div>
+              <div class="kv-key">Auth</div>
+              <div class="kv-value">Local dev (X-Dev-User)</div>
             </div>
             <div class="kv-row">
               <div class="kv-key">2FA</div>

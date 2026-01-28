@@ -48,6 +48,8 @@ If it fails with “package.json and package-lock.json are not in sync”:
 3) Build:
 - `npm --prefix wallet-web run build`
 
+These frontend gates catch Vite/esbuild transform errors (e.g., duplicate exports in `wallet-web/src/shared/api/endpoints.ts`).
+
 ## Required PR description format
 Include:
 - Exact commands run (copy/paste) + result summary.

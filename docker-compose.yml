@@ -4,9 +4,6 @@ services:
       context: .
       dockerfile: Dockerfile.api
     environment:
-      # пример: подставим dev токены
-      ADMIN_TOKEN: "admin-dev-token"
-      USER_TOKEN_SECRET: "dev-secret"
       # DATABASE_URL: "sqlite:/data/wallet.db"  # если sqlite
       # DATABASE_URL: "postgres://postgres:postgres@db:5432/wallet"  # если postgres
     ports:

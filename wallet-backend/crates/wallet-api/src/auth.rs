@@ -1,9 +1,15 @@
-use axum::{body::Body, extract::State, http::Request, middleware::Next, response::Response};
+use axum::{
+    body::Body,
+    extract::{ConnectInfo, State},
+    http::{Request, header},
+    middleware::Next,
+    response::Response,
+};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use hmac::{Hmac, Mac};
 use percent_encoding::percent_decode_str;
 use sha2::Sha256;
-use sqlx::SqlitePool;
+use std::net::SocketAddr;
 
 use crate::app::AppState;
 use crate::error::{ApiError, ApiResult};
@@ -20,10 +26,6 @@ pub enum Role {
 pub struct AuthCtx {
     pub role: Role,
     pub user_id: Option<UserId>,
-}
-
-pub(crate) fn dev_no_auth_enabled() -> bool {
-    matches!(std::env::var("WALLET_DEV_NO_AUTH"), Ok(v) if v == "1")
 }
 
 fn dev_user_from_header(req: &Request<Body>) -> Option<UserId> {
@@ -49,19 +51,6 @@ fn dev_user_from_query(req: &Request<Body>) -> Option<UserId> {
     None
 }
 
-async fn dev_user_from_currency_account(pool: &SqlitePool, account_id: i64) -> Option<UserId> {
-    let owner = sqlx::query_scalar::<_, String>(
-        "SELECT a.owner_id\n         FROM currency_accounts ca\n         JOIN accounts a ON a.id = ca.root_account_id\n         WHERE ca.id = ?1 AND a.owner_type = 'user'\n         LIMIT 1",
-    )
-    .bind(account_id)
-    .fetch_optional(pool)
-    .await
-    .ok()
-    .flatten()?;
-
-    UserId::parse(&owner).ok()
-}
-
 fn dev_wallet_user_from_path(path: &str) -> ApiResult<Option<UserId>> {
     let Some(rest) = path.strip_prefix("/v1/wallet/") else {
         return Ok(None);
@@ -74,70 +63,29 @@ fn dev_wallet_user_from_path(path: &str) -> ApiResult<Option<UserId>> {
     Ok(Some(user))
 }
 
-fn dev_account_id_from_path(path: &str) -> Option<i64> {
-    let rest = path.strip_prefix("/v1/accounts/")?;
-    let raw = rest.split('/').next().unwrap_or("").trim();
-    if raw.is_empty() {
-        return None;
-    }
-    let raw = raw.strip_prefix("acc_").unwrap_or(raw);
-    raw.parse::<i64>().ok()
+fn dev_selected_user(req: &Request<Body>) -> UserId {
+    dev_user_from_header(req)
+        .or_else(|| dev_user_from_query(req))
+        .unwrap_or_else(|| UserId::parse("u01").expect("dev fallback user id"))
 }
 
-async fn dev_auth_ctx(
-    st: &AppState,
-    path: &str,
-    selected_user: Option<UserId>,
-) -> ApiResult<AuthCtx> {
-    if path.starts_with("/v1/admin") || path.starts_with("/v1/dev") {
-        return Ok(AuthCtx {
-            role: Role::Admin,
-            user_id: None,
-        });
-    }
-
-    if let Some(user_id) = dev_wallet_user_from_path(path)? {
-        if let Some(selected) = selected_user
-            && selected != user_id
-        {
-            return Err(ApiError::BadRequest(
-                "dev user mismatch: path user_id vs selected",
-            ));
-        }
-        return Ok(AuthCtx {
-            role: Role::User,
-            user_id: Some(user_id),
-        });
-    }
-
-    if let Some(account_id) = dev_account_id_from_path(path)
-        && let Some(user_id) = dev_user_from_currency_account(&st.pool, account_id).await
+fn is_local_request(req: &Request<Body>) -> bool {
+    if let Some(host) = req
+        .headers()
+        .get(header::HOST)
+        .and_then(|h| h.to_str().ok())
     {
-        if let Some(selected) = selected_user
-            && selected != user_id
-        {
-            return Err(ApiError::BadRequest(
-                "dev user mismatch: account owner vs selected",
-            ));
+        let host = host.trim().split(':').next().unwrap_or("");
+        if host.eq_ignore_ascii_case("localhost") {
+            return true;
         }
-        return Ok(AuthCtx {
-            role: Role::User,
-            user_id: Some(user_id),
-        });
     }
 
-    if let Some(user_id) = selected_user {
-        return Ok(AuthCtx {
-            role: Role::User,
-            user_id: Some(user_id),
-        });
+    if let Some(ConnectInfo(addr)) = req.extensions().get::<ConnectInfo<SocketAddr>>() {
+        return addr.ip().is_loopback();
     }
 
-    let fallback = UserId::parse("u01").expect("dev fallback user id");
-    Ok(AuthCtx {
-        role: Role::User,
-        user_id: Some(fallback),
-    })
+    false
 }
 
 /// Simple MVP auth:
@@ -149,7 +97,7 @@ async fn dev_auth_ctx(
 /// - This is not intended as production-grade auth. It's a minimal RBAC gate for the MVP.
 /// - We keep it deterministic and small on purpose.
 pub async fn auth_middleware(
-    State(st): State<AppState>,
+    State(_st): State<AppState>,
     mut req: Request<Body>,
     next: Next,
 ) -> Result<Response, ApiError> {
@@ -163,13 +111,25 @@ pub async fn auth_middleware(
         return Ok(next.run(req).await);
     }
 
-    if !dev_no_auth_enabled() && path.starts_with("/v1/dev") {
+    let is_local = is_local_request(&req);
+    if !is_local && path.starts_with("/v1/dev") {
         return Err(ApiError::NotFound("dev endpoint not available"));
     }
 
-    if dev_no_auth_enabled() {
-        let selected_user = dev_user_from_header(&req).or_else(|| dev_user_from_query(&req));
-        let ctx = dev_auth_ctx(&st, &path, selected_user).await?;
+    if is_local {
+        let selected_user = dev_selected_user(&req);
+        if let Some(path_user) = dev_wallet_user_from_path(&path)?
+            && path_user != selected_user
+        {
+            return Err(ApiError::BadRequest(
+                "dev user mismatch: path user_id vs selected",
+            ));
+        }
+        let is_admin = path.starts_with("/v1/admin") || path.starts_with("/v1/dev");
+        let ctx = AuthCtx {
+            role: if is_admin { Role::Admin } else { Role::User },
+            user_id: if is_admin { None } else { Some(selected_user) },
+        };
         req.extensions_mut().insert(ctx);
         return Ok(next.run(req).await);
     }
