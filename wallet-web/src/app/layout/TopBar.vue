@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue"
-import { UButton, UInput, USelect, USpace, UText } from "@uzum-tech/ui"
+import { UButton, UInput, USelect, USpace } from "@uzum-tech/ui"
 import { useSettingsStore, type ThemeMode } from "../stores/settings"
 
 const settings = useSettingsStore()
@@ -21,15 +21,22 @@ const handleThemeUpdate = (value: ThemeMode) => {
 <template>
   <div class="topbar">
     <div class="topbar-left">
-      <UText strong>App Shell</UText>
-      <UText depth="3">Uzum UI os-theme foundation</UText>
+      <div class="title-row">
+        <div class="app-title">Uzum Wallet</div>
+        <span class="env-pill" title="Frontend demo">Demo</span>
+      </div>
+      <p class="app-subtitle">
+        API: <span class="mono">{{ settings.apiBaseUrl }}</span>
+      </p>
     </div>
-    <USpace align="center" :size="16" wrap>
+
+    <USpace align="center" :size="12" wrap class="topbar-actions">
       <UInput
         v-model:value="settings.apiBaseUrl"
         placeholder="API base URL"
         clearable
         :input-props="apiInputProps"
+        class="api-input"
       />
       <UButton size="small" @click="settings.resetApiBaseUrl">Reset</UButton>
       <USelect
@@ -38,6 +45,7 @@ const handleThemeUpdate = (value: ThemeMode) => {
         :value="settings.themeMode"
         @update:value="handleThemeUpdate"
         placeholder="Theme"
+        class="theme-select"
       />
     </USpace>
   </div>
@@ -48,12 +56,77 @@ const handleThemeUpdate = (value: ThemeMode) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
+  gap: 18px;
 }
 
 .topbar-left {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  min-width: 0;
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.app-title {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.app-subtitle {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.env-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  background: var(--brand-primary);
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  flex: 0 0 auto;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.topbar-actions {
+  align-items: center;
+}
+
+.api-input {
+  width: 320px;
+}
+
+@media (max-width: 920px) {
+  .api-input {
+    width: 240px;
+  }
+}
+
+@media (max-width: 720px) {
+  .topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .api-input {
+    width: 100%;
+  }
 }
 </style>

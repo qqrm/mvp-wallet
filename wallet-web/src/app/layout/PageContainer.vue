@@ -1,15 +1,32 @@
-<script setup lang="ts">
-import { UCard } from "@uzum-tech/ui"
-</script>
+<script setup lang="ts"></script>
 
 <template>
-  <UCard class="page-container">
-    <slot />
-  </UCard>
+  <div class="page-container">
+    <div class="page-surface">
+      <slot />
+    </div>
+  </div>
 </template>
 
 <style scoped>
 .page-container {
-  min-height: calc(100vh - 120px);
+  width: 100%;
+}
+
+.page-surface {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+@media (max-width: 720px) {
+  .page-surface {
+    padding: 18px;
+    border-radius: 14px;
+  }
 }
 </style>

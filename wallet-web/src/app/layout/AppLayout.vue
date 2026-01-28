@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { RouterView } from "vue-router"
 import { watch } from "vue"
-import { ULayout, ULayoutContent, ULayoutHeader, ULayoutSider, USpin, UAlert, useLoadingBar, useMessage } from "@uzum-tech/ui"
+import { USpin, UAlert, useLoadingBar, useMessage } from "@uzum-tech/ui"
 import SidebarNav from "./SidebarNav.vue"
-import TopBar from "./TopBar.vue"
 import PageContainer from "./PageContainer.vue"
 import { useSessionStore } from "../stores/session"
 import { registerMessageApi } from "../../shared/ui/notifications"
@@ -18,25 +17,20 @@ watch(
   () => session.isLoading,
   (isLoading) => {
     if (!loadingBar) return
-    if (isLoading) {
-      loadingBar.start()
-    } else {
-      loadingBar.finish()
-    }
+    if (isLoading) loadingBar.start()
+    else loadingBar.finish()
   },
 )
 </script>
 
 <template>
-  <ULayout class="app-shell">
-    <ULayoutSider bordered class="app-sider" width="240">
+  <div class="app-shell">
+    <aside class="app-sider">
       <SidebarNav />
-    </ULayoutSider>
-    <ULayout>
-      <ULayoutHeader class="app-header">
-        <TopBar />
-      </ULayoutHeader>
-      <ULayoutContent class="app-content">
+    </aside>
+
+    <main class="app-main">
+      <div class="app-content">
         <PageContainer>
           <UAlert
             v-if="session.alert"
@@ -51,29 +45,57 @@ watch(
             <RouterView />
           </USpin>
         </PageContainer>
-      </ULayoutContent>
-    </ULayout>
-  </ULayout>
+      </div>
+    </main>
+  </div>
 </template>
 
 <style scoped>
 .app-shell {
   min-height: 100vh;
+  display: flex;
+  background: var(--bg);
 }
 
 .app-sider {
-  padding: 16px 12px;
+  width: 256px;
+  padding: 18px 14px;
+  background: var(--bg-elev);
+  border-right: 1px solid var(--border);
 }
 
-.app-header {
-  padding: 12px 24px;
+.app-main {
+  flex: 1;
+  min-width: 0;
 }
 
 .app-content {
-  padding: 24px;
+  padding: 18px;
 }
 
 .app-alert {
   margin-bottom: 16px;
+}
+
+@media (max-width: 920px) {
+  .app-sider {
+    width: 220px;
+  }
+}
+
+@media (max-width: 720px) {
+  .app-shell {
+    flex-direction: column;
+  }
+
+  .app-sider {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .app-content {
+    padding: 12px;
+  }
 }
 </style>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed, watch } from "vue"
 import {
   UConfigProvider,
   UGlobalStyle,
@@ -15,12 +15,23 @@ import { useSettingsStore } from "./app/stores/settings"
 const settings = useSettingsStore()
 const osThemeRef = useOsTheme()
 
-// Uzum UI os-theme: https://uzum-ui.kapitalbank.uz/en-US/os-theme (providers + system theme via useOsTheme).
-const resolvedTheme = computed(() => {
-  if (settings.themeMode === "dark") return darkTheme
-  if (settings.themeMode === "light") return lightTheme
-  return osThemeRef.value === "dark" ? darkTheme : lightTheme
+const resolvedThemeMode = computed(() => {
+  if (settings.themeMode === "dark") return "dark"
+  if (settings.themeMode === "light") return "light"
+  return osThemeRef.value === "dark" ? "dark" : "light"
 })
+
+// Uzum UI os-theme: https://uzum-ui.kapitalbank.uz/en-US/os-theme
+const resolvedTheme = computed(() => (resolvedThemeMode.value === "dark" ? darkTheme : lightTheme))
+
+watch(
+  resolvedThemeMode,
+  (mode) => {
+    if (typeof document === "undefined") return
+    document.documentElement.setAttribute("data-theme", mode)
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
