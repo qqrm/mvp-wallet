@@ -1,12 +1,11 @@
-# Documentation
+# Uzum Wallet Product + Engineering Blueprint — v3.3 (MVP)
 
-This repository contains project documentation for the Uzum Wallet MVP (v3.3).
+This is the v3.3 documentation set.
+
+Structure:
+- `spec/` — implementable MVP specification (normalized).
+- `appendix/sources/` — cleaned integrated source texts (one file per source, with stable anchors).
 
 Start here:
-- [Blueprint v3.3 — MVP Spec (EN)](./blueprint/v3.3/spec/README.md)
-
-- [Working v3.3 — RU documentation (first-class)](./working/v3.3-working-ru/README.md)
-
-Conventions:
-- The spec (`docs/blueprint/v3.3/spec/`) is the implementable "source of truth".
-- Sources are provided for traceability; references in RU docs point to stable anchors in the integrated source files.
+- [MVP Spec index](spec/README.md)
+- [Sources index](appendix/sources/README.md)

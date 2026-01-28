@@ -21,3 +21,6 @@ This folder contains the normalized, implementable MVP spec, split by top-level 
 - [14. TESTING REQUIREMENTS (MVP)](./14_testing_requirements_mvp.md)
 - [15. MVP BACKEND DEFINITION OF DONE (DoD)](./15_mvp_backend_definition_of_done_dod.md)
 - [16. PDR / Decisions (MVP)](./16_pdr_decisions.md)
+- [17. MOBILE UI/UX (MVP)](./17_mobile_uiux_mvp.md)
+- [18. TEAM & DELIVERY PLAN (MVP)](./18_team_delivery_plan_mvp.md)
+- [19. CHANGELOG](./19_changelog.md)

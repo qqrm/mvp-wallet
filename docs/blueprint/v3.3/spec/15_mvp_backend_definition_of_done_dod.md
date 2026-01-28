@@ -1,12 +1,10 @@
 # 15. MVP BACKEND DEFINITION OF DONE (DoD)
 
 Release cannot ship until:
-- All endpoints implemented under /v1 per section 7.3
-- OpenAPI published + validated in CI (schema == runtime)
-- Idempotency enforced for all money POST endpoints (409 on payload mismatch)
-- Ledger invariants always pass (double-entry, immutable postings)
-- Receipt endpoints correct for all flows
-- Observability: correlation_id present and stored; audit_event written for every money/admin action
-- Persistence: Postgres staging/prod; backups + restore drill executed; migrations gated in CI
-
-END OF MVP SPEC (v3.3)
+- /v1 endpoints implemented: admin accounts create/close, fund, withdraw, reverse, search; transfers; spend simulate; FX quote/execute; history; transaction receipt.
+- OpenAPI published and validated in CI; schema matches runtime behavior.
+- Idempotency enforced for all money POST endpoints; return 409 IDEMPOTENCY_CONFLICT on payload mismatch.
+- Ledger invariants always pass (double-entry; no negative available; immutable postings).
+- Integration/E2E tests cover critical scenarios (P2P, idempotency replay/conflict, FX, spend, admin fund/withdraw/reverse).
+- Observability: correlation_id present and stored; audit_event written for every money/admin action; dashboards for errors and latency are available.
+- Persistence/ops: Postgres for staging/prod; backups + PITR; restore drill executed; migrations gated in CI; runbooks exist for incident and balance discrepancy investigation.
