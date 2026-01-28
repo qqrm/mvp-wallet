@@ -88,6 +88,20 @@ const handleUpdate = (value: string | number) => {
       @update:value="handleUpdate"
     />
 
+    <div class="security">
+      <div class="security-title">Security</div>
+      <div class="kv">
+        <div class="kv-row">
+          <div class="kv-key">Auth</div>
+          <div class="kv-value">Local dev (X-Dev-User)</div>
+        </div>
+        <div class="kv-row">
+          <div class="kv-key">2FA</div>
+          <div class="kv-value">Not configured</div>
+        </div>
+      </div>
+    </div>
+
     <div class="system">
       <div class="system-title">System</div>
       <USpace vertical :size="10">
@@ -221,6 +235,46 @@ const handleUpdate = (value: string | number) => {
 
 .nav-menu {
   flex: 1;
+}
+
+.security {
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.security-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.kv {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.kv-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.kv-key {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.kv-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-align: right;
 }
 
 .system {

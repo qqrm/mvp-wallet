@@ -1,4 +1,4 @@
-# Justfile (root)
+# Justfile (root) — fixed: dev/web-dev always self-initialize web deps
 
 set dotenv-load := true
 set shell := ["bash", "-lc"]
@@ -14,25 +14,27 @@ help:
   @just --list
 
 # --------------------
-# Frontend helpers
+# Frontend
 # --------------------
 
+# Installs web deps if missing (or if WALLET_WEB_INSTALL=1).
+# Strategy:
+# - if package-lock.json exists -> try npm ci, fallback to npm install
+# - else -> npm install
 web-install:
-	@pwsh -NoLogo -NoProfile -EncodedCommand UwBlAHQALQBTAHQAcgBpAGMAdABNAG8AZABlACAALQBWAGUAcgBzAGkAbwBuACAATABhAHQAZQBzAHQACgBQAHUAcwBoAC0ATABvAGMAYQB0AGkAbwBuACAAIgB3AGEAbABsAGUAdAAtAHcAZQBiACIACgBuAHAAbQAgAGMAaQAgAC0ALQBuAG8ALQBhAHUAZABpAHQAIAAtAC0AbgBvAC0AZgB1AG4AZAAKAGkAZgAgACgAJABMAEEAUwBUAEUAWABJAFQAQwBPAEQARQAgAC0AbgBlACAAMAApACAAewAKACAAIABXAHIAaQB0AGUALQBIAG8AcwB0ACAAIgBuAHAAbQAgAGMAaQAgAGYAYQBpAGwAZQBkACAAKABsAG8AYwBrACAAbQBpAHMAbQBhAHQAYwBoACkALgAgAFIAdQBuAG4AaQBuAGcAIABuAHAAbQAgAGkAbgBzAHQAYQBsAGwAIAB0AG8AIAByAGUAcwB5AG4AYwAgAGwAbwBjAGsAZgBpAGwAZQAuAC4ALgAiACAALQBGAG8AcgBlAGcAcgBvAHUAbgBkAEMAbwBsAG8AcgAgAFkAZQBsAGwAbwB3AAoAIAAgAG4AcABtACAAaQBuAHMAdABhAGwAbAAgAC0ALQBuAG8ALQBhAHUAZABpAHQAIAAtAC0AbgBvAC0AZgB1AG4AZAAKACAAIABpAGYAIAAoACQATABBAFMAVABFAFgASQBUAEMATwBEAEUAIAAtAG4AZQAgADAAKQAgAHsAIABlAHgAaQB0ACAAJABMAEEAUwBUAEUAWABJAFQAQwBPAEQARQAgAH0ACgB9AAoAUABvAHAALQBMAG8AYwBhAHQAaQBvAG4ACgA=
+  powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File scripts/web-install.ps1
 
-web-build:
+web-build: web-install
   npm --prefix {{WEB_DIR}} run build
 
-# In this repo there are no "test"/"lint" scripts for the web yet.
-# Minimal "test/lint" = typecheck+build (vue-tsc + vite build).
-web-test:
+web-test: web-install
   npm --prefix {{WEB_DIR}} run typecheck
-  just web-build
+  npm --prefix {{WEB_DIR}} run build
 
-web-lint:
+web-lint: web-install
   npm --prefix {{WEB_DIR}} run typecheck
 
-web-dev:
+web-dev: web-install
   npm --prefix {{WEB_DIR}} run dev
 
 clean-web:
@@ -45,7 +47,7 @@ clean-web-unix:
   rm -rf wallet-web/node_modules wallet-web/dist
 
 # --------------------
-# Backend helpers
+# Backend
 # --------------------
 
 backend-build:
@@ -84,21 +86,18 @@ drop-db-unix:
 reset-db: drop-db
 
 # --------------------
-# Combined (requested MVP commands)
+# Combined
 # --------------------
 
 build:
-  just web-install
   just backend-build
   just web-build
 
 test:
-  just web-install
   just backend-test
   just web-test
 
 lint:
-  just web-install
   just backend-fmt-check
   just backend-clippy
   just web-lint
@@ -113,20 +112,21 @@ clean:
   just clean-web
 
 # --------------------
-# Dev environment (two windows)
+# Dev (one command to run everything)
 # --------------------
 
 dev:
-  just web-install
   {{ if os() == "windows" { "just dev-win" } else { "just dev-unix" } }}
 
 dev-win:
+  just web-install
   Start-Process -WorkingDirectory 'wallet-backend' -FilePath 'powershell.exe' -ArgumentList @('-NoLogo','-NoProfile','-Command','cargo run -p wallet-api')
   Start-Process -WorkingDirectory 'wallet-web' -FilePath 'powershell.exe' -ArgumentList @('-NoLogo','-NoProfile','-Command','npm run dev')
   Write-Host 'API: http://127.0.0.1:3000'
   Write-Host 'WEB: http://127.0.0.1:5173'
 
 dev-unix:
+  just web-install
   (cd wallet-backend && cargo run -p wallet-api) & (cd wallet-web && npm run dev) ; wait
 
 reload:

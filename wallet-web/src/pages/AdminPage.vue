@@ -8,7 +8,7 @@ import { type ApiError } from "../shared/api/client"
 import {
   fetchCurrencies,
   fetchDevUsers,
-  postAdminCreateAccount,
+  postAdminOpenCurrencyAccount,
   postAdminCreateUser,
   postAdminTopup,
   type CurrencyItem,
@@ -119,17 +119,22 @@ const createUser = async () => {
 
 const createAccountUserId = ref("")
 const createAccountCurrency = ref("")
-const createAccountLabel = ref("")
 const createAccount = async () => {
   const owner_user_id = createAccountUserId.value.trim()
   const currency = createAccountCurrency.value.trim()
-  const label = createAccountLabel.value.trim()
   if (!owner_user_id || !currency) return
   isLoading.value = true
   try {
-    const resp = await postAdminCreateAccount({ owner_user_id, currency, label }, { baseUrl: settings.apiBaseUrl })
-    notifySuccess(`Account ${resp.account_id} created for ${resolveUserLabel(resp.owner_user_id)} (${resp.currency}).`)
-    createAccountLabel.value = ""
+    const resp = await postAdminOpenCurrencyAccount(
+      owner_user_id,
+      { currency },
+      { baseUrl: settings.apiBaseUrl },
+    )
+    notifySuccess(
+      resp.opened
+        ? `Currency account opened for ${resolveUserLabel(resp.user_id)} (${resp.currency}).`
+        : `Currency account already exists for ${resolveUserLabel(resp.user_id)} (${resp.currency}).`,
+    )
   } catch (error) {
     notifyError((error as ApiError)?.message ?? "Unable to create account.")
   } finally {
@@ -230,11 +235,6 @@ const runTopup = async () => {
                 :options="currencyOptions"
                 data-testid="admin-create-account-currency"
                 placeholder="Currency"
-              />
-              <UInput
-                v-model:value="createAccountLabel"
-                data-testid="admin-create-account-label"
-                placeholder="Label (optional)"
               />
             </div>
 

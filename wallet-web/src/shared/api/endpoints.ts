@@ -166,6 +166,16 @@ export type AdminCreateAccountRequest = {
   label: string
 }
 
+export type AdminOpenCurrencyAccountRequest = {
+  currency: string
+}
+
+export type AdminOpenCurrencyAccountResponse = {
+  user_id: string
+  currency: string
+  opened: boolean
+}
+
 export type AdminCreateAccountResponse = {
   account_id: string
   status: string
@@ -182,6 +192,19 @@ export const postAdminCreateAccount = async (
     baseUrl: options?.baseUrl,
     headers: options?.headers,
     path: "/v1/admin/accounts",
+    method: "POST",
+    jsonBody: body,
+  })
+
+export const postAdminOpenCurrencyAccount = async (
+  userId: string,
+  body: AdminOpenCurrencyAccountRequest,
+  options?: ApiCallOptions,
+): Promise<AdminOpenCurrencyAccountResponse> =>
+  apiRequest<AdminOpenCurrencyAccountResponse>({
+    baseUrl: options?.baseUrl,
+    headers: options?.headers,
+    path: `/v1/admin/users/${encodeURIComponent(userId)}/accounts`,
     method: "POST",
     jsonBody: body,
   })

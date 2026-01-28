@@ -192,13 +192,6 @@ const canSend = computed(() => {
   return recipient.length > 0 && amount !== null && amount > 0n && !session.isLoading
 })
 
-const totalByCurrency = computed(() =>
-  balances.value.map((b) => ({
-    currency: b.currency,
-    total: b.availableMinor + b.reservedMinor,
-  })),
-)
-
 const loadWallet = async () => {
   session.setLoading(true)
   try {
@@ -327,11 +320,6 @@ const handleSend = async () => {
         <CoralButton class="refresh-btn" :disabled="session.isLoading" test-id="wallet-refresh" @click="loadWallet">
           {{ session.isLoading ? "Refreshing..." : "Refresh" }}
         </CoralButton>
-
-        <div v-for="row in totalByCurrency" :key="row.currency" class="total-pill">
-          <span class="total-currency">{{ row.currency }}</span>
-          <span class="total-value">{{ formatMinorAmount(row.currency, row.total) }}</span>
-        </div>
       </div>
     </div>
 
@@ -383,18 +371,6 @@ const handleSend = async () => {
           </USpace>
         </UCard>
 
-        <UCard title="Security" class="mt16">
-          <div class="kv">
-            <div class="kv-row">
-              <div class="kv-key">Auth</div>
-              <div class="kv-value">Local dev (X-Dev-User)</div>
-            </div>
-            <div class="kv-row">
-              <div class="kv-key">2FA</div>
-              <div class="kv-value">Not configured</div>
-            </div>
-          </div>
-        </UCard>
       </UGridItem>
     </UGrid>
   </div>
