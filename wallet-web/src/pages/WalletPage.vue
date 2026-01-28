@@ -1,16 +1,7 @@
 <script setup lang="ts">
 import { computed, h, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
-import {
-  UCard,
-  UDataTable,
-  UGrid,
-  UGridItem,
-  UInput,
-  USelect,
-  USpace,
-  UText,
-} from "@uzum-tech/ui"
+import { UCard, UDataTable, UGrid, UGridItem, UInput, USelect, USpace, UText } from "@uzum-tech/ui"
 import CoralButton from "../shared/ui/CoralButton.vue"
 import { useSessionStore } from "../app/stores/session"
 import { useSettingsStore } from "../app/stores/settings"
@@ -41,6 +32,7 @@ type TxRow = {
 
 const AUTH_TOKEN_KEY = "wallet-web.authToken"
 const DEFAULT_USER_ID = "u01"
+
 const I64_MAX = 9_223_372_036_854_775_807n
 const I64_MIN = -9_223_372_036_854_775_808n
 const JS_SAFE_MAX = BigInt(Number.MAX_SAFE_INTEGER)
@@ -75,6 +67,18 @@ watch(
     const nextQuery = { ...route.query }
     delete nextQuery.token
     void router.replace({ query: nextQuery })
+  },
+  { immediate: true },
+)
+
+watch(
+  () => route.query.as,
+  (value) => {
+    if (typeof value === "string" && value.trim()) {
+      currentUserId.value = value.trim()
+      return
+    }
+    currentUserId.value = DEFAULT_USER_ID
   },
   { immediate: true },
 )
@@ -121,14 +125,17 @@ const groupDigits = (digits: string) => {
 }
 
 const parseMinorAmount = (value: string, minorUnits: number): bigint | null => {
-  const trimmed = value.trim()
-  if (!trimmed) return null
-  if (trimmed.startsWith("-")) return null
-  if (!/^\d*\.?\d*$/.test(trimmed)) return null
-  if (trimmed === ".") return null
-  if (minorUnits === 0 && trimmed.includes(".")) return null
+  const trimmedRaw = value.trim()
+  if (!trimmedRaw) return null
+  if (trimmedRaw.startsWith("-")) return null
 
-  const [wholeRaw = "", fractionRaw = ""] = trimmed.split(".")
+  // Accept: "12", "12.", "12.3", ".5" ; Reject non-decimal chars
+  const normalized = trimmedRaw.startsWith(".") ? `0${trimmedRaw}` : trimmedRaw
+  if (!/^\d*\.?\d*$/.test(normalized)) return null
+  if (normalized === ".") return null
+  if (minorUnits === 0 && normalized.includes(".")) return null
+
+  const [wholeRaw = "", fractionRaw = ""] = normalized.split(".")
   if (wholeRaw === "" && fractionRaw === "") return null
   if (fractionRaw.length > minorUnits) return null
 
@@ -157,6 +164,32 @@ const formatMinorAmount = (currency: string, minorValue: bigint) => {
   return `${isNegative ? "-" : ""}${groupDigits(whole.toString())}${DECIMAL_SEPARATOR}${fraction}`
 }
 
+const sessionLabel = computed(() => (authToken.value ? "Token auth" : "Dev mode"))
+
+const buildHeaders = (userId: string, extra?: HeadersInit) => {
+  const headers = new Headers()
+  if (authToken.value) {
+    headers.set("Authorization", `Bearer ${authToken.value}`)
+  } else {
+    headers.set("X-Dev-User", userId)
+  }
+  if (extra) {
+    const extraHeaders = new Headers(extra)
+    extraHeaders.forEach((value, key) => headers.set(key, value))
+  }
+  return headers
+}
+
+const resolveAuthError = (error: ApiError, fallbackMessage: string) => {
+  if ((error?.status === 401 || error?.status === 403) && !authToken.value) {
+    return "Backend requires dev-no-auth. Start backend with WALLET_DEV_NO_AUTH=1."
+  }
+  if (error?.status === 401 || error?.status === 403) {
+    return "Authorization failed. Check your token."
+  }
+  return error?.message ?? fallbackMessage
+}
+
 const txColumns = [
   {
     title: "ID",
@@ -176,13 +209,39 @@ const txColumns = [
           {
             class: "copy-btn",
             type: "button",
+            title: "Copy transaction id",
+            "aria-label": "Copy transaction id",
             onClick: (e: MouseEvent) => {
               e.preventDefault()
               e.stopPropagation()
               void copyToClipboard(row.id)
             },
           },
-          "Copy",
+          [
+            h(
+              "svg",
+              {
+                class: "copy-icon",
+                viewBox: "0 0 24 24",
+                fill: "none",
+                xmlns: "http://www.w3.org/2000/svg",
+                "aria-hidden": "true",
+              },
+              [
+                h("path", {
+                  d: "M9 9.5C9 8.11929 10.1193 7 11.5 7H18.5C19.8807 7 21 8.11929 21 9.5V16.5C21 17.8807 19.8807 19 18.5 19H11.5C10.1193 19 9 17.8807 9 16.5V9.5Z",
+                  stroke: "currentColor",
+                  "stroke-width": "1.6",
+                }),
+                h("path", {
+                  d: "M15 7V6C15 4.89543 14.1046 4 13 4H6C4.89543 4 4 4.89543 4 6V13C4 14.1046 4.89543 15 6 15H7",
+                  stroke: "currentColor",
+                  "stroke-width": "1.6",
+                  "stroke-linecap": "round",
+                }),
+              ],
+            ),
+          ],
         ),
       ]),
   },
@@ -193,7 +252,7 @@ const txColumns = [
     key: "amountMinor",
     render: (row: TxRow) => formatMinorAmount(row.currency, row.amountMinor),
   },
-  { title: "Counterparty", key: "counterparty" },
+  { title: "Description", key: "counterparty" },
   { title: "Status", key: "status" },
 ]
 
@@ -220,7 +279,7 @@ const parsedTransferAmount = computed(() => parseMinorAmount(transferAmount.valu
 const canSend = computed(() => {
   const recipient = transferRecipientId.value.trim()
   const amount = parsedTransferAmount.value
-  return recipient.length > 0 && amount !== null && amount > 0n
+  return recipient.length > 0 && amount !== null && amount > 0n && !session.isLoading
 })
 
 const totalByCurrency = computed(() =>
@@ -229,44 +288,6 @@ const totalByCurrency = computed(() =>
     total: b.availableMinor + b.reservedMinor,
   })),
 )
-
-const sessionLabel = computed(() => (authToken.value ? "Token auth" : "Dev mode"))
-
-const buildHeaders = (userId: string, extra?: HeadersInit) => {
-  const headers = new Headers()
-  if (authToken.value) {
-    headers.set("Authorization", `Bearer ${authToken.value}`)
-  } else {
-    headers.set("X-Dev-User", userId)
-  }
-  if (extra) {
-    const extraHeaders = new Headers(extra)
-    extraHeaders.forEach((value, key) => headers.set(key, value))
-  }
-  return headers
-}
-
-watch(
-  () => route.query.as,
-  (value) => {
-    if (typeof value === "string" && value.trim()) {
-      currentUserId.value = value.trim()
-      return
-    }
-    currentUserId.value = DEFAULT_USER_ID
-  },
-  { immediate: true },
-)
-
-const resolveAuthError = (error: ApiError, fallbackMessage: string) => {
-  if ((error?.status === 401 || error?.status === 403) && !authToken.value) {
-    return "Backend requires dev-no-auth. Start backend with WALLET_DEV_NO_AUTH=1."
-  }
-  if (error?.status === 401 || error?.status === 403) {
-    return "Authorization failed. Check your token."
-  }
-  return error?.message ?? fallbackMessage
-}
 
 const loadWallet = async () => {
   session.setLoading(true)
@@ -313,6 +334,14 @@ watch(
   { immediate: true },
 )
 
+const buildIdempotencyKey = () => {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID()
+  }
+  const randomPart = () => Math.random().toString(16).slice(2)
+  return `idem-${Date.now().toString(16)}-${randomPart()}-${randomPart()}`
+}
+
 const handleSend = async () => {
   const recipient = transferRecipientId.value.trim()
   if (!recipient) {
@@ -337,12 +366,13 @@ const handleSend = async () => {
     notifyError("Amount is too large.")
     return
   }
-  const amountNumber = Number(amountMinor)
 
+  const amountNumber = Number(amountMinor)
   const userId = currentUserId.value
+
   session.setLoading(true)
   try {
-    const idemKey = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`
+    const idemKey = buildIdempotencyKey()
     await postWalletTransfer(
       settings.apiBaseUrl,
       userId,
@@ -378,9 +408,11 @@ const handleSend = async () => {
           <span class="total-currency">User</span>
           <span class="total-value">{{ currentUserId }}</span>
         </div>
+
         <CoralButton class="refresh-btn" :disabled="session.isLoading" test-id="wallet-refresh" @click="loadWallet">
-          Refresh
+          {{ session.isLoading ? "Refreshing..." : "Refresh" }}
         </CoralButton>
+
         <div v-for="row in totalByCurrency" :key="row.currency" class="total-pill">
           <span class="total-currency">{{ row.currency }}</span>
           <span class="total-value">{{ formatMinorAmount(row.currency, row.total) }}</span>
@@ -429,7 +461,7 @@ const handleSend = async () => {
           <USpace vertical :size="12">
             <UInput v-model:value="transferRecipientId" placeholder="Recipient ID" />
             <USelect :options="currencyOptions" v-model:value="transferCurrency" />
-            <UInput v-model:value="transferAmount" placeholder="Amount" />
+            <UInput v-model:value="transferAmount" placeholder="Amount" inputmode="decimal" />
             <div class="actions-row">
               <CoralButton :disabled="!canSend" test-id="wallet-send" @click="handleSend">Send</CoralButton>
             </div>
@@ -611,22 +643,30 @@ const handleSend = async () => {
 
 .copy-btn {
   height: 26px;
-  padding: 0 10px;
-  border-radius: 10px;
+  width: 26px;
+  padding: 0;
+  border-radius: 8px;
   border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  font-size: 12px;
-  font-weight: 700;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
 }
 
 .copy-btn:hover {
   border-color: rgba(112, 0, 255, 0.24);
+  color: var(--text);
 }
 
 .copy-btn:active {
   transform: translateY(1px);
+}
+
+.copy-icon {
+  width: 14px;
+  height: 14px;
 }
 
 @media (max-width: 1024px) {
