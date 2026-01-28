@@ -166,6 +166,17 @@ pub struct ListTxsResponse {
 // ------------------------ Admin (MVP) ------------------------
 
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
+pub struct AdminUserItem {
+    pub user_id: String,
+    pub display_name: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+pub struct AdminListUsersResponse {
+    pub users: Vec<AdminUserItem>,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct AdminCreateUserRequest {
     pub user_id: String,
 }

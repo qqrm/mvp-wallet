@@ -2,9 +2,9 @@ use utoipa::OpenApi;
 
 use wallet_app::{
     AdminCloseAccountResponse, AdminCreateAccountRequest, AdminCreateAccountResponse,
-    AdminCreateUserRequest, AdminCreateUserResponse, AdminHoldRequest,
+    AdminCreateUserRequest, AdminCreateUserResponse, AdminHoldRequest, AdminListUsersResponse,
     AdminOpenCurrencyAccountRequest, AdminOpenCurrencyAccountResponse, AdminTopupRequest,
-    BalanceItem, CurrencyItem, DevAccountItem, DevUserAccountsResponse, DevUserItem,
+    AdminUserItem, BalanceItem, CurrencyItem, DevAccountItem, DevUserAccountsResponse, DevUserItem,
     DevUsersResponse, ListBalancesResponse, ListCurrenciesResponse, ListTxsQuery, ListTxsResponse,
     PostOpResponse, RefundResponse, TopupRequest, TransferRequest, TxItem, TxReceiptEntryItem,
     TxReceiptResponse,
@@ -29,6 +29,7 @@ use wallet_app::{
         crate::api::wallet_balances,
         crate::api::wallet_txs,
         crate::api::wallet_transfer,
+        crate::api::admin_list_users,
         crate::api::admin_create_user,
         crate::api::admin_open_currency_account,
         crate::api::admin_create_account,
@@ -52,6 +53,8 @@ use wallet_app::{
         TransferRequest,
         AdminCreateUserRequest,
         AdminCreateUserResponse,
+        AdminUserItem,
+        AdminListUsersResponse,
         AdminOpenCurrencyAccountRequest,
         AdminOpenCurrencyAccountResponse,
         AdminCreateAccountRequest,
