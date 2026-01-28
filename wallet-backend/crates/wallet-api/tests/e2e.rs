@@ -1247,6 +1247,60 @@ async fn supported_currency_allows_money_op() {
 }
 
 #[tokio::test]
+async fn admin_list_users_returns_users() {
+    let ctx = setup().await;
+
+    admin_create_user_ok(ctx.app.clone(), "u02").await;
+    admin_create_user_ok(ctx.app.clone(), "u01").await;
+
+    let u02_account_id = db::get_user_account_id_or_404(&ctx.pool, "u02")
+        .await
+        .unwrap();
+    db::set_account_label(&ctx.pool, u02_account_id, "User Two")
+        .await
+        .unwrap();
+
+    let (st, body) = call(
+        ctx.app.clone(),
+        req_get("/v1/admin/users", Some(admin_token().to_string())),
+    )
+    .await;
+    assert_eq!(st, StatusCode::OK);
+
+    let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let users = v["users"].as_array().unwrap();
+    assert!(users.windows(2).all(|pair| {
+        let left = pair[0]["user_id"].as_str().unwrap();
+        let right = pair[1]["user_id"].as_str().unwrap();
+        left <= right
+    }));
+
+    let u01 = users
+        .iter()
+        .find(|user| user["user_id"].as_str() == Some("u01"))
+        .unwrap();
+    let u02 = users
+        .iter()
+        .find(|user| user["user_id"].as_str() == Some("u02"))
+        .unwrap();
+
+    assert_eq!(u01["display_name"].as_str().unwrap(), "u01");
+    assert_eq!(u02["display_name"].as_str().unwrap(), "User Two");
+}
+
+#[tokio::test]
+async fn admin_list_users_forbidden_for_user_token() {
+    let ctx = setup().await;
+
+    let (st, _body) = call(
+        ctx.app.clone(),
+        req_get("/v1/admin/users", Some(user_token("u01"))),
+    )
+    .await;
+    assert_eq!(st, StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
 async fn dev_no_auth_wallet_path_user_uses_path_user() {
     with_env_var("WALLET_DEV_NO_AUTH", Some("1"), async {
         let ctx = setup().await;
