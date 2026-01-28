@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue"
+import { onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 import { UCard, UGrid, UGridItem, USpace, UText } from "@uzum-tech/ui"
 import CoralButton from "../shared/ui/CoralButton.vue"
 import { useSettingsStore } from "../app/stores/settings"
 import { type ApiError } from "../shared/api/client"
 import { fetchDevUsers, type DevUserItem } from "../shared/api/endpoints"
-
-const DEFAULT_USER_ID = "u01"
 
 const settings = useSettingsStore()
 const router = useRouter()
@@ -16,13 +14,11 @@ const users = ref<DevUserItem[]>([])
 const isLoading = ref(false)
 const errorMessage = ref<string | null>(null)
 
-const headers = computed(() => new Headers({ "X-Dev-User": DEFAULT_USER_ID }))
-
 const loadUsers = async () => {
   isLoading.value = true
   errorMessage.value = null
   try {
-    const response = await fetchDevUsers({ baseUrl: settings.apiBaseUrl, headers: headers.value })
+    const response = await fetchDevUsers({ baseUrl: settings.apiBaseUrl })
     users.value = response.users
   } catch (error) {
     errorMessage.value = (error as ApiError)?.message ?? "Unable to load users."

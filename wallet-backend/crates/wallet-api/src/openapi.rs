@@ -14,7 +14,8 @@ use wallet_app::{
 ///
 /// Notes:
 /// - This is intentionally minimal and reflects the current MVP endpoints.
-/// - Auth is a simple `Authorization: Bearer ...` gate (see `agents.md`).
+/// - Non-localhost auth is a simple `Authorization: Bearer ...` gate.
+/// - Localhost requests bypass tokens and use `X-Dev-User` or `?as=` (default `u01`).
 #[derive(OpenApi)]
 #[openapi(
     info(
