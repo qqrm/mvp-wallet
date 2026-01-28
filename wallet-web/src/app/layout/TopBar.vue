@@ -22,7 +22,7 @@ const handleThemeUpdate = (value: ThemeMode) => {
   <div class="topbar">
     <div class="topbar-left">
       <div class="title-row">
-        <div class="app-title">Uzum Wallet</div>
+        <div class="app-title">Wallet</div>
         <span class="env-pill" title="Frontend demo">Demo</span>
       </div>
       <p class="app-subtitle">

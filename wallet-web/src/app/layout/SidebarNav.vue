@@ -71,10 +71,10 @@ const handleUpdate = (value: string | number) => {
 <template>
   <div class="sidebar">
     <div class="brand">
-      <div class="brand-mark" aria-hidden="true">U</div>
+      <div class="brand-mark" aria-hidden="true">W</div>
       <div class="brand-text">
         <div class="brand-title-row">
-          <div class="brand-title">Uzum Wallet</div>
+          <div class="brand-title">Wallet</div>
           <span class="env-pill" title="Frontend demo">Demo</span>
         </div>
         <UText depth="3" class="brand-subtitle">Web console</UText>

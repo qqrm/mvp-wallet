@@ -1,12 +1,36 @@
 <script setup lang="ts">
-import { ref } from "vue"
+import { computed, ref } from "vue"
 import { UCard, UInput, USpace, UText } from "@uzum-tech/ui"
 import CoralButton from "../shared/ui/CoralButton.vue"
+import { useSettingsStore } from "../app/stores/settings"
+import { type ApiError } from "../shared/api/client"
+import { fetchAdminTxReceipt } from "../shared/api/endpoints"
+import { notifyError } from "../shared/ui/notifications"
+
+const settings = useSettingsStore()
 
 const txId = ref("")
+const isLoading = ref(false)
+const errorMessage = ref<string | null>(null)
+const receipt = ref<unknown | null>(null)
 
-const handleLookup = () => {
-  // UI demo only; wire to receipt endpoint when ready.
+const canFetch = computed(() => txId.value.trim().length > 0 && !isLoading.value)
+
+const handleLookup = async () => {
+  const id = txId.value.trim()
+  if (!id) return
+  isLoading.value = true
+  errorMessage.value = null
+  receipt.value = null
+  try {
+    receipt.value = await fetchAdminTxReceipt(id, { baseUrl: settings.apiBaseUrl })
+  } catch (e) {
+    const msg = (e as ApiError)?.message ?? "Unable to fetch receipt."
+    errorMessage.value = msg
+    notifyError(msg)
+  } finally {
+    isLoading.value = false
+  }
 }
 </script>
 
@@ -19,10 +43,18 @@ const handleLookup = () => {
 
     <UCard title="Find by tx_id">
       <USpace vertical :size="12">
-        <UInput v-model:value="txId" placeholder="Transaction ID (e.g. tx_...)" />
+        <UInput v-model:value="txId" data-testid="receipt-txid" placeholder="Transaction ID (uuid)" />
         <div class="row">
-          <CoralButton disabled test-id="receipt-fetch" @click="handleLookup">Fetch receipt</CoralButton>
-          <UText depth="3" class="muted">Will be enabled once API is wired.</UText>
+          <CoralButton :disabled="!canFetch" test-id="receipt-fetch" @click="handleLookup">
+            {{ isLoading ? "Fetching..." : "Fetch receipt" }}
+          </CoralButton>
+          <UText depth="3" class="muted">Uses local admin endpoint (/v1/admin/transactions/:tx_id).</UText>
+        </div>
+
+        <div v-if="errorMessage" class="error-text">{{ errorMessage }}</div>
+
+        <div v-if="receipt" class="receipt-json">
+          <pre>{{ JSON.stringify(receipt, null, 2) }}</pre>
         </div>
       </USpace>
     </UCard>
@@ -41,6 +73,22 @@ const handleLookup = () => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.receipt-json {
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  border-radius: 12px;
+  padding: 12px;
+  overflow: auto;
+  max-height: 520px;
+}
+
+.receipt-json pre {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 @media (max-width: 720px) {

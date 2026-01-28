@@ -33,6 +33,11 @@ const currencyOptions = computed(() =>
 
 const minorUnitsByCurrency = computed(() => new Map(currencies.value.map((c) => [c.code, c.minor_units])))
 
+const resolveUserLabel = (userId: string) => {
+  const found = users.value.find((u) => u.user_id === userId)
+  return found ? `${found.display_name} (${found.user_id})` : userId
+}
+
 const parseMinorAmount = (value: string, minorUnits: number): number | null => {
   const trimmedRaw = value.trim()
   if (!trimmedRaw) return null
@@ -122,11 +127,8 @@ const createAccount = async () => {
   if (!owner_user_id || !currency) return
   isLoading.value = true
   try {
-    const resp = await postAdminCreateAccount(
-      { owner_user_id, currency, label },
-      { baseUrl: settings.apiBaseUrl },
-    )
-    notifySuccess(`Account ${resp.account_id} created for ${resp.owner_user_id} (${resp.currency}).`)
+    const resp = await postAdminCreateAccount({ owner_user_id, currency, label }, { baseUrl: settings.apiBaseUrl })
+    notifySuccess(`Account ${resp.account_id} created for ${resolveUserLabel(resp.owner_user_id)} (${resp.currency}).`)
     createAccountLabel.value = ""
   } catch (error) {
     notifyError((error as ApiError)?.message ?? "Unable to create account.")
@@ -149,16 +151,15 @@ const runTopup = async () => {
     return
   }
 
-  const idem = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `web-${Date.now()}-${Math.random()}`
+  const idem =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `web-${Date.now()}-${Math.random()}`
 
   isLoading.value = true
   try {
-    const resp = await postAdminTopup(
-      { user_id, currency, amount_minor },
-      idem,
-      { baseUrl: settings.apiBaseUrl },
-    )
-    notifySuccess(`Topup posted: ${resp.tx_id}`)
+    const resp = await postAdminTopup({ user_id, currency, amount_minor }, idem, { baseUrl: settings.apiBaseUrl })
+    notifySuccess(`Topup posted for ${resolveUserLabel(user_id)}: ${resp.tx_id}`)
     topupAmount.value = ""
   } catch (error) {
     notifyError((error as ApiError)?.message ?? "Unable to post topup.")
@@ -194,15 +195,17 @@ const runTopup = async () => {
                   <div class="user-name">{{ user.display_name }}</div>
                   <div class="user-id">{{ user.user_id }}</div>
                 </div>
-                <CoralButton test-id="admin-open-wallet" @click="openWallet(user.user_id)">
-                  Open wallet
-                </CoralButton>
+                <CoralButton test-id="admin-open-wallet" @click="openWallet(user.user_id)">Open wallet</CoralButton>
               </li>
             </ul>
 
             <div class="form-row">
-              <UInput v-model="newUserId" placeholder="New user id (e.g. u11)" />
-              <CoralButton test-id="admin-create-user" :disabled="isLoading || !newUserId.trim()" @click="createUser">
+              <UInput v-model:value="newUserId" data-testid="admin-new-user" placeholder="New user id (e.g. u11)" />
+              <CoralButton
+                test-id="admin-create-user"
+                :disabled="isLoading || !newUserId.trim()"
+                @click="createUser"
+              >
                 Create user
               </CoralButton>
             </div>
@@ -216,9 +219,23 @@ const runTopup = async () => {
             <UText depth="3">Create currency accounts for a user.</UText>
 
             <div class="form-grid">
-              <USelect v-model="createAccountUserId" :options="userOptions" placeholder="User" />
-              <USelect v-model="createAccountCurrency" :options="currencyOptions" placeholder="Currency" />
-              <UInput v-model="createAccountLabel" placeholder="Label (optional)" />
+              <USelect
+                v-model:value="createAccountUserId"
+                :options="userOptions"
+                data-testid="admin-create-account-user"
+                placeholder="User"
+              />
+              <USelect
+                v-model:value="createAccountCurrency"
+                :options="currencyOptions"
+                data-testid="admin-create-account-currency"
+                placeholder="Currency"
+              />
+              <UInput
+                v-model:value="createAccountLabel"
+                data-testid="admin-create-account-label"
+                placeholder="Label (optional)"
+              />
             </div>
 
             <CoralButton
@@ -238,9 +255,23 @@ const runTopup = async () => {
             <UText depth="3">Post topup to a user account.</UText>
 
             <div class="form-grid">
-              <USelect v-model="topupUserId" :options="userOptions" placeholder="User" />
-              <USelect v-model="topupCurrency" :options="currencyOptions" placeholder="Currency" />
-              <UInput v-model="topupAmount" placeholder="Amount (major, e.g. 12.34)" />
+              <USelect
+                v-model:value="topupUserId"
+                :options="userOptions"
+                data-testid="admin-topup-user"
+                placeholder="User"
+              />
+              <USelect
+                v-model:value="topupCurrency"
+                :options="currencyOptions"
+                data-testid="admin-topup-currency"
+                placeholder="Currency"
+              />
+              <UInput
+                v-model:value="topupAmount"
+                data-testid="admin-topup-amount"
+                placeholder="Amount (major, e.g. 12.34)"
+              />
             </div>
 
             <CoralButton
@@ -271,12 +302,48 @@ const runTopup = async () => {
   gap: 16px;
 }
 
-
 .card-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.user-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.user-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.user-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.user-name {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.user-id {
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 .form-row {
@@ -292,54 +359,12 @@ const runTopup = async () => {
   gap: 10px;
 }
 
-.user-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.user-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-}
-
-.user-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.user-name {
+.error-text {
+  color: var(--danger);
   font-weight: 700;
 }
 
-.user-id {
-  font-size: 12px;
-  color: var(--muted);
-}
-
 .muted {
-  color: var(--muted);
-}
-
-.error-text {
-  color: #ef4444;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-@media (max-width: 1024px) {
-  .admin-header {
-    flex-direction: column;
-  }
+  color: var(--text-muted);
 }
 </style>

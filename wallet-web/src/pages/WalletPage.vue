@@ -8,10 +8,12 @@ import { useSettingsStore } from "../app/stores/settings"
 import { type ApiError } from "../shared/api/client"
 import {
   fetchCurrencies,
+  fetchDevUsers,
   fetchWalletBalances,
   fetchWalletTxs,
   postWalletTransfer,
   type CurrencyItem,
+  type DevUserItem,
 } from "../shared/api/endpoints"
 import { notifyError, notifySuccess } from "../shared/ui/notifications"
 
@@ -46,6 +48,14 @@ const transactions = ref<TxRow[]>([])
 const currencies = ref<CurrencyItem[]>([])
 const currentUserId = ref(DEFAULT_USER_ID)
 
+const devUsers = ref<DevUserItem[]>([])
+
+const currentUserLabel = computed(() => {
+  const id = currentUserId.value
+  const found = devUsers.value.find((u) => u.user_id === id)
+  return found ? `${found.display_name} (${found.user_id})` : id
+})
+
 watch(
   () => route.query.as,
   (value) => {
@@ -57,7 +67,6 @@ watch(
   },
   { immediate: true },
 )
-
 
 const numberFormatParts = new Intl.NumberFormat(undefined).formatToParts(1000.1)
 const GROUP_SEPARATOR = numberFormatParts.find((part) => part.type === "group")?.value ?? ","
@@ -135,7 +144,7 @@ const txColumns = [
     title: "ID",
     key: "id",
     render: (row: TxRow) =>
-      h("div", { class: "tx-cell" }, [
+      h("div", { class: "tx-cell tx-id-cell" }, [
         h(
           "span",
           {
@@ -146,7 +155,7 @@ const txColumns = [
         ),
       ]),
   },
-  { title: "Type", key: "type" },
+{ title: "Type", key: "type" },
   { title: "Currency", key: "currency" },
   {
     title: "Amount",
@@ -196,13 +205,15 @@ const loadWallet = async () => {
     const userId = currentUserId.value
     const headers = buildHeaders(userId)
 
-    const currencyResponse = await fetchCurrencies({ baseUrl: settings.apiBaseUrl, headers })
-    currencies.value = currencyResponse.items
-
-    const [balanceResponse, txResponse] = await Promise.all([
+    const [devRes, currencyResponse, balanceResponse, txResponse] = await Promise.all([
+      fetchDevUsers({ baseUrl: settings.apiBaseUrl }),
+      fetchCurrencies({ baseUrl: settings.apiBaseUrl, headers }),
       fetchWalletBalances(userId, { baseUrl: settings.apiBaseUrl, headers }),
       fetchWalletTxs(userId, 50, { baseUrl: settings.apiBaseUrl, headers }),
     ])
+
+    devUsers.value = devRes.users
+    currencies.value = currencyResponse.items
 
     balances.value = balanceResponse.balances.map((item) => ({
       currency: item.currency,
@@ -223,6 +234,7 @@ const loadWallet = async () => {
     session.setLoading(false)
   }
 }
+
 
 watch(
   [() => settings.apiBaseUrl, currentUserId],
@@ -307,9 +319,9 @@ const handleSend = async () => {
       </div>
 
       <div class="wallet-totals">
-        <div class="total-pill user-pill">
+        <div class="total-pill user-pill" data-testid="wallet-user-pill">
           <span class="total-currency">User</span>
-          <span class="total-value">{{ currentUserId }}</span>
+          <span class="total-value">{{ currentUserLabel }}</span>
         </div>
 
         <CoralButton class="refresh-btn" :disabled="session.isLoading" test-id="wallet-refresh" @click="loadWallet">
@@ -353,7 +365,7 @@ const handleSend = async () => {
 
         <UCard title="Recent transactions" class="mt16">
           <UText depth="3" class="muted">Latest activity from your wallet.</UText>
-          <div class="mt12">
+          <div class="mt12 recent-txs">
             <UDataTable :columns="txColumns" :data="transactions" />
           </div>
         </UCard>
@@ -534,14 +546,25 @@ const handleSend = async () => {
 
 .tx-id {
   display: inline-block;
-  max-width: 180px;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
-  user-select: all;
+  user-select: text;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 12px;
   font-weight: 700;
+}
+
+.tx-id-cell {
+  min-width: 0;
+}
+
+.recent-txs :deep(table) {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.recent-txs :deep(th:nth-child(1)),
+.recent-txs :deep(td:nth-child(1)) {
+  width: 420px;
 }
 
 

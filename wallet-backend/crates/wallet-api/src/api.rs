@@ -56,6 +56,7 @@ pub fn routes() -> Router<AppState> {
             post(admin_close_account),
         )
         .route("/v1/admin/topup", post(admin_topup))
+        .route("/v1/admin/transactions/{tx_id}", get(admin_tx_receipt))
         .route("/v1/admin/holds", post(admin_hold_authorize))
         .route("/v1/admin/holds/{tx_id}/capture", post(admin_hold_capture))
         .route("/v1/admin/holds/{tx_id}/cancel", post(admin_hold_cancel))
@@ -96,6 +97,18 @@ pub(crate) async fn tx_receipt(
 
     let user_id = require_user(&auth)?;
     let r = service::get_tx_receipt_user(&st.pool, &user_id, &tx_id).await?;
+    Ok(Json(r))
+}
+
+#[allow(dead_code)]
+pub(crate) async fn admin_tx_receipt(
+    State(st): State<AppState>,
+    Extension(auth): Extension<AuthCtx>,
+    Path(tx_id): Path<String>,
+) -> ApiResult<Json<TxReceiptResponse>> {
+    require_admin(&auth)?;
+    let tx_id = TxId::parse(&tx_id).map_err(ApiError::from)?;
+    let r = service::get_tx_receipt_admin(&st.pool, &tx_id).await?;
     Ok(Json(r))
 }
 
@@ -545,6 +558,9 @@ pub(crate) async fn admin_topup(
 
     let idem = parse_idempotency(&headers)?;
     let user = UserId::parse(&body.user_id)?;
+    let currency = Currency::parse(&body.currency).map_err(ApiError::from)?;
+    // Local dev UX: ensure the currency account exists so admin topups always work.
+    service::admin_open_currency_account(&st.pool, &user, &currency).await?;
     let body_value =
         serde_json::to_value(&body).map_err(|_| ApiError::Internal("invalid request body"))?;
     let scope = "admin:topup";
@@ -596,6 +612,9 @@ pub(crate) async fn admin_hold_authorize(
 
     let idem = parse_idempotency(&headers)?;
     let user = UserId::parse(&body.user_id)?;
+    let currency = Currency::parse(&body.currency).map_err(ApiError::from)?;
+    // Local dev UX: ensure the currency account exists so admin topups always work.
+    service::admin_open_currency_account(&st.pool, &user, &currency).await?;
     let body_value =
         serde_json::to_value(&body).map_err(|_| ApiError::Internal("invalid request body"))?;
     let scope = "admin:hold_authorize";

@@ -14,9 +14,9 @@
 }
 
 .page-surface {
-  max-width: 1200px;
+  max-width: 1600px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 32px;
   border-radius: var(--radius);
   background: var(--surface);
   border: 1px solid var(--border);

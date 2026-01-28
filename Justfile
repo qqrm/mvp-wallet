@@ -18,7 +18,18 @@ help:
 # --------------------
 
 web-install:
-  npm --prefix {{WEB_DIR}} ci
+    @pwsh -NoLogo -NoProfile -Command ^
+        "$ProgressPreference='SilentlyContinue'; " ^
+        "Set-StrictMode -Version Latest; " ^
+        "Push-Location 'wallet-web'; " ^
+        "npm ci --no-audit --no-fund; " ^
+        "if ($LASTEXITCODE -ne 0) { " ^
+        "  Write-Host 'npm ci failed (lock mismatch). Running npm install to resync lockfile...' -ForegroundColor Yellow; " ^
+        "  npm install --no-audit --no-fund; " ^
+        "  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } " ^
+        "} " ^
+        "Pop-Location"
+
 
 web-build:
   npm --prefix {{WEB_DIR}} run build

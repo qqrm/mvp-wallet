@@ -37,7 +37,7 @@ const router = createRouter({
 })
 
 router.afterEach((to: RouteLocationNormalized) => {
-  const title = to.meta?.title ? `Uzum Wallet • ${to.meta.title}` : "Uzum Wallet"
+  const title = to.meta?.title ? `Wallet • ${to.meta.title}` : "Wallet"
   if (typeof document !== "undefined") {
     document.title = title
   }

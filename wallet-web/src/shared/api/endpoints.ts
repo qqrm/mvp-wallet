@@ -207,3 +207,12 @@ export const postAdminTopup = async (
     method: "POST",
     jsonBody: body,
   })
+
+
+export const fetchAdminTxReceipt = async (txId: string, options?: ApiCallOptions): Promise<unknown> =>
+  apiRequest<unknown>({
+    baseUrl: options?.baseUrl,
+    headers: options?.headers,
+    path: `/v1/admin/transactions/${encodeURIComponent(txId)}`,
+    method: "GET",
+  })
