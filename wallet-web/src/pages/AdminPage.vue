@@ -1,6 +1,39 @@
 <script setup lang="ts">
+import { onMounted, ref } from "vue"
+import { useRouter } from "vue-router"
 import { UCard, UGrid, UGridItem, USpace, UText } from "@uzum-tech/ui"
 import CoralButton from "../shared/ui/CoralButton.vue"
+import { useSettingsStore } from "../app/stores/settings"
+import { type ApiError } from "../shared/api/client"
+import { fetchDevUsers, type DevUserItem } from "../shared/api/endpoints"
+
+const settings = useSettingsStore()
+const router = useRouter()
+
+const users = ref<DevUserItem[]>([])
+const isLoading = ref(false)
+const errorMessage = ref<string | null>(null)
+
+const loadUsers = async () => {
+  isLoading.value = true
+  errorMessage.value = null
+  try {
+    const response = await fetchDevUsers({ baseUrl: settings.apiBaseUrl })
+    users.value = response.users
+  } catch (error) {
+    errorMessage.value = (error as ApiError)?.message ?? "Unable to load users."
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const openWallet = (userId: string) => {
+  void router.push({ path: "/wallet", query: { as: userId } })
+}
+
+onMounted(() => {
+  void loadUsers()
+})
 </script>
 
 <template>
@@ -17,8 +50,21 @@ import CoralButton from "../shared/ui/CoralButton.vue"
       <UGridItem>
         <UCard title="Users">
           <USpace vertical :size="12">
-            <UText depth="3">Invite, disable, and rotate credentials.</UText>
-            <CoralButton disabled test-id="admin-invite">Invite user</CoralButton>
+            <UText depth="3">Select a user to open their wallet.</UText>
+            <div v-if="errorMessage" class="error-text">{{ errorMessage }}</div>
+            <div v-else-if="isLoading" class="muted">Loading users...</div>
+            <div v-else-if="!users.length" class="muted">No users found.</div>
+            <ul v-else class="user-list">
+              <li v-for="user in users" :key="user.user_id" class="user-row">
+                <div class="user-meta">
+                  <div class="user-name">{{ user.display_name }}</div>
+                  <div class="user-id">{{ user.user_id }}</div>
+                </div>
+                <CoralButton test-id="admin-open-wallet" @click="openWallet(user.user_id)">
+                  Open wallet
+                </CoralButton>
+              </li>
+            </ul>
           </USpace>
         </UCard>
       </UGridItem>
@@ -69,6 +115,51 @@ import CoralButton from "../shared/ui/CoralButton.vue"
   color: rgba(255, 255, 255, 0.95);
   background: rgba(239, 68, 68, 0.92);
   box-shadow: 0 14px 28px rgba(239, 68, 68, 0.18);
+}
+
+.user-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.user-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.user-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.user-name {
+  font-weight: 700;
+}
+
+.user-id {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.error-text {
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 @media (max-width: 1024px) {

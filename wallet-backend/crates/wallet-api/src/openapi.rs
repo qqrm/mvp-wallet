@@ -14,13 +14,14 @@ use wallet_app::{
 ///
 /// Notes:
 /// - This is intentionally minimal and reflects the current MVP endpoints.
-/// - Auth is a simple `Authorization: Bearer ...` gate (see `agents.md`).
+/// - Non-localhost auth is a simple `Authorization: Bearer ...` gate.
+/// - Localhost requests bypass tokens and use `X-Dev-User` or `?as=` (default `u01`).
 #[derive(OpenApi)]
 #[openapi(
     info(
         title = "wallet-backend",
         version = "0.1.0",
-        description = "Wallet MVP API (ledger + balances projection + RBAC). Dev endpoints under /v1/dev are available only when WALLET_DEV_NO_AUTH=1."
+        description = "Wallet MVP API (ledger + balances projection + RBAC). Dev endpoints under /v1/dev are available only on localhost."
     ),
     paths(
         crate::api::health,

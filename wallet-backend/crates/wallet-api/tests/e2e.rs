@@ -4,18 +4,13 @@ use bytes::Bytes;
 use http_body_util::BodyExt;
 use proptest::prelude::*;
 use serde_json::json;
-use std::future::Future;
-use std::sync::OnceLock;
 use tempfile::TempDir;
-use tokio::sync::Mutex;
 use tower::ServiceExt;
 
 use wallet_api::{app, auth};
 use wallet_infra::db;
 
 type TestApp = axum::Router; // Router<()> в axum 0.8
-
-static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
 struct TestCtx {
     _dir: TempDir,
@@ -72,25 +67,6 @@ async fn call(app: TestApp, req: Request<Body>) -> (StatusCode, Bytes) {
     (status, body)
 }
 
-async fn with_env_var<T, Fut>(key: &str, value: Option<&str>, fut: Fut) -> T
-where
-    Fut: Future<Output = T>,
-{
-    let lock = ENV_LOCK.get_or_init(|| Mutex::new(())).lock().await;
-    let prev = std::env::var(key).ok();
-    match value {
-        Some(v) => unsafe { std::env::set_var(key, v) },
-        None => unsafe { std::env::remove_var(key) },
-    }
-    let res = fut.await;
-    match prev {
-        Some(v) => unsafe { std::env::set_var(key, v) },
-        None => unsafe { std::env::remove_var(key) },
-    }
-    drop(lock);
-    res
-}
-
 fn admin_token() -> &'static str {
     "admin-test-token"
 }
@@ -107,13 +83,15 @@ fn req_get(uri: &str, bearer: Option<String>) -> Request<Body> {
     b.body(Body::empty()).unwrap()
 }
 
-fn req_get_with_dev_user(uri: &str, dev_user: &str) -> Request<Body> {
-    Request::builder()
+fn req_get_local(uri: &str, dev_user: Option<&str>) -> Request<Body> {
+    let mut b = Request::builder()
         .method("GET")
         .uri(uri)
-        .header("X-Dev-User", dev_user)
-        .body(Body::empty())
-        .unwrap()
+        .header("Host", "localhost");
+    if let Some(dev_user) = dev_user {
+        b = b.header("X-Dev-User", dev_user);
+    }
+    b.body(Body::empty()).unwrap()
 }
 
 fn req_post_json(
@@ -1301,73 +1279,73 @@ async fn admin_list_users_forbidden_for_user_token() {
 }
 
 #[tokio::test]
-async fn dev_no_auth_wallet_path_user_uses_path_user() {
-    with_env_var("WALLET_DEV_NO_AUTH", Some("1"), async {
-        let ctx = setup().await;
+async fn localhost_wallet_path_user_uses_selected_user() {
+    let ctx = setup().await;
 
-        admin_create_user_ok(ctx.app.clone(), "u02").await;
-        admin_open_currency_account_ok(ctx.app.clone(), "u02", "UZS").await;
-        let (st, _) = admin_topup(ctx.app.clone(), "u02", "UZS", 700, "idem-dev-topup").await;
-        assert_eq!(st, StatusCode::OK);
+    admin_create_user_ok(ctx.app.clone(), "u02").await;
+    admin_open_currency_account_ok(ctx.app.clone(), "u02", "UZS").await;
+    let (st, _) = admin_topup(ctx.app.clone(), "u02", "UZS", 700, "idem-dev-topup").await;
+    assert_eq!(st, StatusCode::OK);
 
-        let (st, body) = call(ctx.app.clone(), req_get("/v1/wallet/u02/balances", None)).await;
-        assert_eq!(st, StatusCode::OK);
-
-        let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
-        assert_eq!(v["balances"][0]["currency"].as_str().unwrap(), "UZS");
-    })
+    let (st, body) = call(
+        ctx.app.clone(),
+        req_get_local("/v1/wallet/u02/balances?as=u02", None),
+    )
     .await;
+    assert_eq!(st, StatusCode::OK);
+
+    let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(v["balances"][0]["currency"].as_str().unwrap(), "UZS");
 }
 
 #[tokio::test]
-async fn dev_no_auth_wallet_path_user_mismatch_rejected() {
-    with_env_var("WALLET_DEV_NO_AUTH", Some("1"), async {
-        let ctx = setup().await;
+async fn localhost_wallet_path_user_mismatch_rejected() {
+    let ctx = setup().await;
 
-        let (st, body) = call(
-            ctx.app.clone(),
-            req_get_with_dev_user("/v1/wallet/u02/balances", "u01"),
-        )
-        .await;
-        assert_eq!(st, StatusCode::BAD_REQUEST);
-
-        let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
-        assert_eq!(
-            v["error"].as_str().unwrap(),
-            "dev user mismatch: path user_id vs selected"
-        );
-    })
+    let (st, body) = call(
+        ctx.app.clone(),
+        req_get_local("/v1/wallet/u02/balances", Some("u01")),
+    )
     .await;
+    assert_eq!(st, StatusCode::BAD_REQUEST);
+
+    let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(
+        v["error"].as_str().unwrap(),
+        "dev user mismatch: path user_id vs selected"
+    );
 }
 
 #[tokio::test]
-async fn dev_no_auth_profile_uses_selected_user() {
-    with_env_var("WALLET_DEV_NO_AUTH", Some("1"), async {
-        let ctx = setup().await;
+async fn localhost_profile_uses_selected_user() {
+    let ctx = setup().await;
 
-        let (st, body) = call(ctx.app.clone(), req_get_with_dev_user("/v1/profile", "u03")).await;
-        assert_eq!(st, StatusCode::OK);
+    let (st, body) = call(ctx.app.clone(), req_get_local("/v1/profile", Some("u03"))).await;
+    assert_eq!(st, StatusCode::OK);
 
-        let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
-        assert_eq!(v["phone_number"].as_str().unwrap(), "u03");
-    })
-    .await;
+    let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(v["phone_number"].as_str().unwrap(), "u03");
 }
 
 #[tokio::test]
-async fn dev_endpoints_unavailable_without_dev_no_auth() {
-    with_env_var("WALLET_DEV_NO_AUTH", None, async {
-        let ctx = setup().await;
+async fn dev_endpoints_unavailable_off_localhost() {
+    let ctx = setup().await;
 
-        let (st, _body) = call(ctx.app.clone(), req_get("/v1/dev/users", None)).await;
-        assert_eq!(st, StatusCode::NOT_FOUND);
+    let (st, _body) = call(ctx.app.clone(), req_get("/v1/dev/users", None)).await;
+    assert_eq!(st, StatusCode::NOT_FOUND);
 
-        let (st, _body) = call(
-            ctx.app.clone(),
-            req_get("/v1/dev/users", Some(admin_token().to_string())),
-        )
-        .await;
-        assert_eq!(st, StatusCode::NOT_FOUND);
-    })
+    let (st, _body) = call(
+        ctx.app.clone(),
+        req_get("/v1/dev/users", Some(admin_token().to_string())),
+    )
     .await;
+    assert_eq!(st, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn dev_endpoints_available_on_localhost() {
+    let ctx = setup().await;
+
+    let (st, _body) = call(ctx.app.clone(), req_get_local("/v1/dev/users", None)).await;
+    assert_eq!(st, StatusCode::OK);
 }

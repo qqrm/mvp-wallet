@@ -97,9 +97,11 @@ State transitions must be enforced:
 ## 4. RBAC & security model
 
 ### 4.1 Authentication
-All non-health endpoints require:
+Non-localhost requests require:
 
 Authorization: Bearer <token>
+
+Localhost requests (loopback IP or `Host: localhost`) bypass token auth and derive identity from `X-Dev-User` or `?as=` (default `u01`).
 
 
 ### 4.2 Admin
