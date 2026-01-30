@@ -6,4 +6,4 @@ This repository contains:
 
 ![Screenshot](img/wallet.png)
 
-
+run: just dev
