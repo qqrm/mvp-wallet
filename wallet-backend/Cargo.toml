@@ -5,6 +5,7 @@ members = [
   "crates/wallet-app",
   "crates/wallet-infra",
   "crates/wallet-api",
+  "crates/wallet-perf",
 ]
 
 [workspace.package]
@@ -38,9 +39,15 @@ percent-encoding = "2.3"
 # OpenAPI / Swagger UI
 utoipa = { version = "5.4", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "9.0", features = ["axum", "vendored"] }
+
 # Test utilities
 bytes = "1"
 http-body-util = "0.1"
 proptest = "1"
 tempfile = "3"
 tower = "0.5"
+
+# Perf tooling
+clap = { version = "4.5.23", features = ["derive"] }
+rand = "0.8"
+hdrhistogram = "7"

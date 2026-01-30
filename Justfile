@@ -65,6 +65,10 @@ backend-clippy:
 backend-run:
   cargo run --manifest-path {{BACKEND_DIR}}/Cargo.toml -p {{API_PKG}}
 
+# Runs the component-level throughput/latency perf harness (no HTTP/JSON).
+backend-perf *args:
+  cargo run --manifest-path {{BACKEND_DIR}}/Cargo.toml -p wallet-perf -- {{args}}
+
 clean-backend:
   cargo clean --manifest-path {{BACKEND_DIR}}/Cargo.toml
 

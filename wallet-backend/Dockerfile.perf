@@ -1,0 +1,21 @@
+# Build & run the wallet-perf harness in a container.
+#
+# Usage from repo root:
+#   docker build -f wallet-backend/Dockerfile.perf -t wallet-perf wallet-backend
+#   docker run --rm --cpus=1 --memory=1g wallet-perf --help
+
+FROM rust:1-bookworm AS build
+
+WORKDIR /app
+
+COPY Cargo.toml Cargo.lock ./
+COPY crates ./crates
+
+RUN cargo build -p wallet-perf --release
+
+FROM debian:bookworm-slim
+WORKDIR /app
+
+COPY --from=build /app/target/release/wallet-perf /app/wallet-perf
+
+ENTRYPOINT ["/app/wallet-perf"]
